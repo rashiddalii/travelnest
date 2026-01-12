@@ -1,0 +1,217 @@
+// TravelNest Database Schema
+// Use this file with dbdiagram.io or other ERD tools
+
+Project TravelNest {
+  database_type: 'PostgreSQL'
+  Note: 'TravelNest - The lifelong digital home for every trip'
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+Table auth.users {
+  id uuid [pk]
+  email text
+  created_at timestamptz
+  Note: 'Managed by Supabase Auth'
+}
+
+Table profiles {
+  id uuid [pk, ref: > auth.users.id]
+  full_name text
+  avatar_url text
+  bio text
+  preferences jsonb [default: '{}']
+  onboarding_completed boolean [default: false]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  Note: 'Extended user profile with TravelNest-specific data'
+}
+
+// ============================================
+// TRIPS & COLLABORATION
+// ============================================
+
+Table trips {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  slug text [unique, not null]
+  title text [not null]
+  description text
+  cover_photo_url text
+  start_date date
+  end_date date
+  privacy text [default: 'private', note: 'private|friends-only|public']
+  owner_id uuid [ref: > profiles.id, not null]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  Note: 'Core trip entity - the main board for each trip'
+}
+
+Table trip_members {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  trip_id uuid [ref: > trips.id, not null]
+  user_id uuid [ref: > profiles.id, not null]
+  role text [default: 'editor', note: 'owner|editor|viewer']
+  invited_by uuid [ref: > profiles.id]
+  invited_at timestamptz [default: `now()`]
+  joined_at timestamptz
+  created_at timestamptz [default: `now()`]
+  
+  indexes {
+    (trip_id, user_id) [unique, name: 'unique_trip_user']
+    trip_id
+    user_id
+  }
+  
+  Note: 'Many-to-many: users ↔ trips with permissions'
+}
+
+Table trip_sections {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  trip_id uuid [ref: > trips.id, not null]
+  type text [not null, note: 'overview|itinerary|budget|expenses|packing|documents|photos|notes|playlist']
+  title text [not null]
+  position integer [default: 0]
+  metadata jsonb [default: '{}']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    trip_id
+    (trip_id, position)
+  }
+  
+  Note: 'Sections within a trip board (Overview, Itinerary, Budget, etc.)'
+}
+
+Table trip_cards {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  section_id uuid [ref: > trip_sections.id, not null]
+  type text [not null, note: 'text|image|link|pdf|map|video|checklist|note']
+  title text
+  content text
+  metadata jsonb [default: '{}', note: 'Stores URLs, coordinates, checklist items, etc.']
+  position integer [default: 0]
+  created_by uuid [ref: > profiles.id]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    section_id
+    (section_id, position)
+  }
+  
+  Note: 'Rich content cards within sections'
+}
+
+// ============================================
+// EXPENSE TRACKING
+// ============================================
+
+Table expenses {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  trip_id uuid [ref: > trips.id, not null]
+  paid_by uuid [ref: > profiles.id, not null]
+  amount decimal(12, 2) [not null]
+  currency text [default: 'PKR']
+  description text
+  category text [note: 'food|transport|accommodation|activity|other']
+  split_type text [default: 'equal', note: 'equal|custom|percentage']
+  receipt_url text
+  date date [default: `current_date`]
+  is_settled boolean [default: false]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    trip_id
+    paid_by
+    date
+  }
+  
+  Note: 'Individual expense entries for a trip'
+}
+
+Table expense_splits {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  expense_id uuid [ref: > expenses.id, not null]
+  user_id uuid [ref: > profiles.id, not null]
+  amount decimal(12, 2) [not null]
+  percentage decimal(5, 2) [note: 'For percentage-based splits']
+  is_settled boolean [default: false]
+  settled_at timestamptz
+  created_at timestamptz [default: `now()`]
+  
+  indexes {
+    (expense_id, user_id) [unique, name: 'unique_expense_user']
+    expense_id
+    user_id
+  }
+  
+  Note: 'Individual user\'s portion of an expense'
+}
+
+// ============================================
+// COLLABORATION & ACTIVITY
+// ============================================
+
+Table comments {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  card_id uuid [ref: > trip_cards.id, not null]
+  user_id uuid [ref: > profiles.id, not null]
+  content text [not null]
+  mentions uuid[] [default: '{}', note: 'Array of user IDs mentioned']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    card_id
+    user_id
+  }
+  
+  Note: 'Comments on trip cards with @mention support'
+}
+
+Table activities {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  trip_id uuid [ref: > trips.id, not null]
+  user_id uuid [ref: > profiles.id, note: 'Actor (nullable for system actions)']
+  type text [not null, note: 'trip_created|member_added|card_added|expense_added|etc']
+  entity_type text [note: 'Reference to affected entity type']
+  entity_id uuid [note: 'Reference to affected entity ID']
+  metadata jsonb [default: '{}']
+  created_at timestamptz [default: `now()`]
+  
+  indexes {
+    trip_id
+    (trip_id, created_at) [note: 'For activity feed queries']
+  }
+  
+  Note: 'Activity feed for real-time updates and notifications'
+}
+
+// ============================================
+// RELATIONSHIPS SUMMARY
+// ============================================
+
+Ref: profiles.id < trips.owner_id [delete: cascade]
+Ref: profiles.id < trip_members.user_id [delete: cascade]
+Ref: profiles.id < trip_members.invited_by [delete: set null]
+Ref: profiles.id < trip_cards.created_by [delete: set null]
+Ref: profiles.id < expenses.paid_by [delete: set null]
+Ref: profiles.id < expense_splits.user_id [delete: cascade]
+Ref: profiles.id < comments.user_id [delete: cascade]
+Ref: profiles.id < activities.user_id [delete: set null]
+
+Ref: trips.id < trip_members.trip_id [delete: cascade]
+Ref: trips.id < trip_sections.trip_id [delete: cascade]
+Ref: trips.id < expenses.trip_id [delete: cascade]
+Ref: trips.id < activities.trip_id [delete: cascade]
+
+Ref: trip_sections.id < trip_cards.section_id [delete: cascade]
+Ref: trip_cards.id < comments.card_id [delete: cascade]
+Ref: expenses.id < expense_splits.expense_id [delete: cascade]
+

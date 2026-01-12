@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TravelNest
 
-## Getting Started
+Your lifelong digital home for every trip — where travellers plan with AI, travel with friends, track every expense, and preserve every memory.
 
-First, run the development server:
+## 🚀 Quick Start
 
+### Prerequisites
+
+- Node.js 18+ and npm
+- A Supabase account ([sign up here](https://supabase.com))
+
+### Installation
+
+1. **Clone and install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Set up Supabase:**
+   - Follow the detailed guide in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+   - Create a Supabase project
+   - Run the database migrations
+   - Get your API keys
+
+3. **Configure environment variables:**
+   ```bash
+   # Copy .env.local and add your Supabase credentials
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   ```
+
+4. **Run the development server:**
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. **Open [http://localhost:3000](http://localhost:3000)**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/              # Next.js App Router pages
+│   ├── (auth)/       # Auth routes (login, register)
+│   ├── api/          # API routes
+│   ├── dashboard/    # Dashboard page
+│   └── trips/        # Trip pages
+├── components/       # React components
+├── lib/             # Utilities and configurations
+│   ├── supabase/    # Supabase client setup
+│   └── store/       # Zustand stores
+├── hooks/           # Custom React hooks
+├── types/           # TypeScript types
+└── styles/          # Global styles
+```
 
-## Learn More
+## 🗄️ Database Setup
 
-To learn more about Next.js, take a look at the following resources:
+The database schema is in `supabase/migrations/001_initial_schema.sql`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**To set up:**
+1. Go to your Supabase dashboard
+2. Open SQL Editor
+3. Run the migration file
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed instructions.
 
-## Deploy on Vercel
+## ✅ Completed Features
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Phase 0 - Auth & Onboarding
+- ✅ **TICKET 0.1** - Authentication with Supabase
+  - Magic Link login
+  - Google OAuth
+  - Email + Password
+  - Protected routes
+  - Auth state management
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Next Up
+- 🔄 **TICKET 0.2** - 30-Second Onboarding Quiz
+- 📋 **TICKET 0.3** - Dashboard (My Trips Home Screen)
+- ✈️ **TICKET 0.4** - Create Trip + 9 Default Sections
+
+## 🛠️ Tech Stack
+
+- **Next.js 16** - React framework
+- **TypeScript** - Type safety
+- **Supabase** - Database, Auth, Storage
+- **Tailwind CSS** - Styling
+- **Zustand** - State management
+- **Lucide React** - Icons
+
+## 📚 Documentation
+
+- [Supabase Setup Guide](./SUPABASE_SETUP.md) - Complete Supabase configuration
+- [TravelNest Core Rules](.cursor/rules/travelnest-core.mdc) - Project specifications
+- [Next.js Rules](.cursor/rules/nextjs-rules.mdc) - Code conventions
+
+## 🐛 Troubleshooting
+
+### "Email not verified" error
+**Solution**: Disable email verification in Supabase settings for development. See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md#3-disable-email-verification-for-development)
+
+### "Invalid supabaseUrl" error
+**Solution**: Make sure your `.env.local` file has the correct Supabase credentials.
+
+### Database tables not showing
+**Solution**: Run the migration SQL in Supabase SQL Editor. See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md#4-set-up-database-schema)
+
+## 📝 License
+
+Private project - All rights reserved
