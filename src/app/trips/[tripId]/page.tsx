@@ -6,6 +6,22 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/auth-store";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   ArrowLeft,
   Calendar,
   Lock,
@@ -18,6 +34,7 @@ import {
   Camera,
   StickyNote,
   Music,
+  GripVertical,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -75,6 +92,65 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   playlist: <Music className="w-5 h-5" />,
 };
 
+// Sortable Section Component
+function SortableSection({
+  section,
+  tripId,
+  canEdit,
+}: {
+  section: Section;
+  tripId: string;
+  canEdit: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
+        {canEdit && (
+          <div
+            {...attributes}
+            {...listeners}
+            className="absolute top-2 right-2 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-grab active:cursor-grabbing z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="w-5 h-5" />
+          </div>
+        )}
+        <Link
+          href={`/trips/${tripId}/sections/${section.id}`}
+          className="block"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white">
+              {SECTION_ICONS[section.type] || <FileText className="w-5 h-5" />}
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              {section.title}
+            </h3>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {section.type}
+          </p>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function TripPage({ params }: TripPageProps) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthStore();
@@ -85,9 +161,20 @@ export default function TripPage({ params }: TripPageProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
 
   // Unwrap params Promise using React.use()
   const { tripId } = use(params);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const canEdit = userRole === "owner" || userRole === "editor";
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -124,6 +211,57 @@ export default function TripPage({ params }: TripPageProps) {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = sections.findIndex((section) => section.id === active.id);
+    const newIndex = sections.findIndex((section) => section.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Optimistically update UI
+    const newSections = arrayMove(sections, oldIndex, newIndex);
+    setSections(newSections);
+
+    // Update positions in database
+    setIsReordering(true);
+    try {
+      const sectionOrders = newSections.map((section, index) => ({
+        id: section.id,
+        position: index,
+      }));
+
+      const response = await fetch(
+        `/api/trips/${tripId}/sections/reorder`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ sectionOrders }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to reorder sections");
+      }
+    } catch (err) {
+      console.error("Error reordering sections:", err);
+      // Revert on error
+      setSections(sections);
+      alert(err instanceof Error ? err.message : "Failed to reorder sections");
+    } finally {
+      setIsReordering(false);
     }
   };
 
@@ -296,9 +434,16 @@ export default function TripPage({ params }: TripPageProps) {
 
         {/* Sections */}
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Trip Sections
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Trip Sections
+            </h2>
+            {canEdit && sections.length > 0 && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Drag to reorder
+              </p>
+            )}
+          </div>
           {sections.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 text-center">
               <p className="text-gray-600 dark:text-gray-400">
@@ -306,26 +451,24 @@ export default function TripPage({ params }: TripPageProps) {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sections.map((section) => (
-                <div
-                  key={section.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white">
-                      {SECTION_ICONS[section.type] || <FileText className="w-5 h-5" />}
-                    </div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                      {section.title}
-                    </h3>
-                  </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {section.type}
-                  </p>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={sections.map((s) => s.id)}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {sections.map((section) => (
+                    <SortableSection
+                      key={section.id}
+                      section={section}
+                      tripId={tripId}
+                      canEdit={canEdit || false}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>

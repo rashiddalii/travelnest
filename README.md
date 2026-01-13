@@ -67,18 +67,29 @@ See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed instructions.
 
 ## ✅ Completed Features
 
-### Phase 0 - Auth & Onboarding
+### Phase 0 - Auth & Onboarding ✅
 - ✅ **TICKET 0.1** - Authentication with Supabase
   - Magic Link login
   - Google OAuth
   - Email + Password
   - Protected routes
   - Auth state management
+- ✅ **TICKET 0.2** - 30-Second Onboarding Quiz
+- ✅ **TICKET 0.3** - Dashboard (My Trips Home Screen)
+- ✅ **TICKET 0.4** - Create Trip + 9 Default Sections
+
+### Phase 1 - Trip Board Foundation ✅
+- ✅ **TICKET 1.1** - Section View & Navigation
+- ✅ **TICKET 1.2** - Add Cards to Sections (text, image, link, map, pdf, video, audio)
+- ✅ **TICKET 1.3** - Edit & Delete Cards
+- ✅ **TICKET 1.4** - Drag & Drop Section Reordering
 
 ### Next Up
-- 🔄 **TICKET 0.2** - 30-Second Onboarding Quiz
-- 📋 **TICKET 0.3** - Dashboard (My Trips Home Screen)
-- ✈️ **TICKET 0.4** - Create Trip + 9 Default Sections
+- 📋 **Phase 2** - Collaboration Features (Invite Members, Real-time Updates)
+- 📋 **Phase 3** - Social & Activity Features (@Mentions, Activity Feed, Auto-add Photos)
+- 📋 **Phase 4** - Expense Tracker
+- 📋 **Phase 5** - AI Trip Planner
+
 
 ## 🛠️ Tech Stack
 
@@ -91,9 +102,11 @@ See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed instructions.
 
 ## 📚 Documentation
 
+- [Next Steps Roadmap](./docs/NEXT_STEPS.md) - Detailed development roadmap with all tickets
 - [Supabase Setup Guide](./SUPABASE_SETUP.md) - Complete Supabase configuration
 - [TravelNest Core Rules](.cursor/rules/travelnest-core.mdc) - Project specifications
 - [Next.js Rules](.cursor/rules/nextjs-rules.mdc) - Code conventions
+- [Workflow Rules](.cursor/rules/workflow.mdc) - Development workflow and phase tracking
 
 ## 🐛 Troubleshooting
 
