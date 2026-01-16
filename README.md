@@ -24,9 +24,14 @@ Your lifelong digital home for every trip — where travellers plan with AI, tra
 
 3. **Configure environment variables:**
    ```bash
-   # Copy .env.local and add your Supabase credentials
+   # Copy .env.local and add your credentials
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   
+   # Email service - To be implemented later
+   # For now, invitation emails are logged to console
+   
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
    ```
 
 4. **Run the development server:**
@@ -84,8 +89,15 @@ See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed instructions.
 - ✅ **TICKET 1.3** - Edit & Delete Cards
 - ✅ **TICKET 1.4** - Drag & Drop Section Reordering
 
+### Phase 2 - Collaboration Features (IN PROGRESS)
+- ✅ **TICKET 2.1** - Invite Members (by email, role selection, remove members)
+- ✅ **TICKET 2.2** - Invitation Notifications System (navbar icon, real-time notifications)
+- ✅ **TICKET 2.3** - Invitations Page (accept/reject invitations)
+- ✅ **TICKET 2.4** - Dashboard: Show Trips Only After Acceptance
+- 📋 **TICKET 2.5** - Real-time Updates (live editing, no refresh needed)
+- 📋 **TICKET 2.6** - Permission Management UI (change member roles)
+
 ### Next Up
-- 📋 **Phase 2** - Collaboration Features (Invite Members, Real-time Updates)
 - 📋 **Phase 3** - Social & Activity Features (@Mentions, Activity Feed, Auto-add Photos)
 - 📋 **Phase 4** - Expense Tracker
 - 📋 **Phase 5** - AI Trip Planner

@@ -157,10 +157,9 @@ export default function SectionPage({ params }: SectionPageProps) {
   const handleDeleteCard = async (cardId: string) => {
     if (!tripId || !sectionId) return;
 
-    setLoading(true);
     const originalCards = [...cards];
     
-    // Optimistic update
+    // Optimistic update - remove card immediately from UI
     setCards(cards.filter(card => card.id !== cardId));
     setDeletingCardId(null);
 
@@ -177,15 +176,13 @@ export default function SectionPage({ params }: SectionPageProps) {
         throw new Error(data.error || "Failed to delete card");
       }
 
-      // Refresh to ensure consistency
+      // Refresh to ensure consistency (silently in background)
       await refreshCards();
     } catch (err) {
       console.error("Error deleting card:", err);
       // Revert optimistic update on error
       setCards(originalCards);
       alert(err instanceof Error ? err.message : "Failed to delete card");
-    } finally {
-      setLoading(false);
     }
   };
 

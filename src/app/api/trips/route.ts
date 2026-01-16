@@ -253,10 +253,31 @@ export async function GET(request: Request) {
       );
     }
 
-    // Strategy: Query trips directly using the trips table RLS policy
-    // This avoids the recursion issue in trip_members policy
-    // Get trips where user is owner OR member (via trips RLS policy)
-    const { data: trips, error: tripsError } = await supabase
+    // First, get the user's trip memberships to filter by joined_at
+    // Only show trips where user is owner OR has accepted invitation (joined_at IS NOT NULL)
+    const { data: userMemberships, error: membershipsError } = await supabase
+      .from("trip_members")
+      .select("trip_id, joined_at, role")
+      .eq("user_id", user.id);
+
+    if (membershipsError) {
+      console.error("Error fetching user memberships:", membershipsError);
+      return NextResponse.json(
+        { error: membershipsError.message || "Failed to fetch memberships" },
+        { status: 500 }
+      );
+    }
+
+    // Get trip IDs where user has accepted (joined_at IS NOT NULL) or is owner
+    const acceptedTripIds = new Set(
+      (userMemberships || [])
+        .filter((m) => m.joined_at !== null)
+        .map((m) => m.trip_id)
+    );
+
+    // Get trips where user is owner OR has accepted invitation
+    // We'll query all trips the user can see via RLS, then filter
+    const { data: allTrips, error: tripsError } = await supabase
       .from("trips")
       .select("*")
       .order("created_at", { ascending: false });
@@ -269,7 +290,16 @@ export async function GET(request: Request) {
       );
     }
 
-    if (!trips || trips.length === 0) {
+    if (!allTrips || allTrips.length === 0) {
+      return NextResponse.json({ trips: [] });
+    }
+
+    // Filter trips: only show trips where user is owner OR has accepted invitation
+    const trips = allTrips.filter(
+      (trip) => trip.owner_id === user.id || acceptedTripIds.has(trip.id)
+    );
+
+    if (trips.length === 0) {
       return NextResponse.json({ trips: [] });
     }
 

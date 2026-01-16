@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -35,8 +35,12 @@ import {
   StickyNote,
   Music,
   GripVertical,
+  UserPlus,
+  X,
+  Clock,
 } from "lucide-react";
 import { format } from "date-fns";
+import { InviteMembersModal } from "@/components/trips/invite-members-modal";
 
 interface Trip {
   id: string;
@@ -64,9 +68,12 @@ interface Section {
 }
 
 interface Member {
+  id?: string;
   user_id: string;
   role: string;
   joined_at: string | null;
+  invited_at?: string | null;
+  status?: "joined" | "pending";
   profile: {
     id: string;
     full_name: string | null;
@@ -135,7 +142,7 @@ function SortableSection({
           className="block"
         >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white">
+            <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white">
               {SECTION_ICONS[section.type] || <FileText className="w-5 h-5" />}
             </div>
             <h3 className="font-semibold text-gray-900 dark:text-white">
@@ -162,6 +169,9 @@ export default function TripPage({ params }: TripPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   // Unwrap params Promise using React.use()
   const { tripId } = use(params);
@@ -177,19 +187,83 @@ export default function TripPage({ params }: TripPageProps) {
   const canEdit = userRole === "owner" || userRole === "editor";
 
   useEffect(() => {
+    // Only redirect if auth is done loading and no user
     if (!authLoading && !user) {
       router.push("/login");
       return;
     }
 
-    if (user && tripId) {
+    // Only fetch once when we have user and tripId, and haven't loaded yet
+    if (user && tripId && !hasLoadedRef.current && !authLoading) {
+      hasLoadedRef.current = true;
       fetchTrip();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, tripId]);
 
-  const fetchTrip = async () => {
+  // Set up real-time subscription for trip_members changes
+  useEffect(() => {
+    if (!tripId || !user) return;
+
+    const channel = supabase
+      .channel(`trip-members-${tripId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "trip_members",
+          filter: `trip_id=eq.${tripId}`,
+        },
+        () => {
+          // Member was deleted (rejected invitation or removed) - refresh members list
+          console.log("🔄 Member deleted, refreshing members list");
+          fetchMembers();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "trip_members",
+          filter: `trip_id=eq.${tripId}`,
+        },
+        () => {
+          // New member added - refresh members list
+          console.log("🔄 New member added, refreshing members list");
+          fetchMembers();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "trip_members",
+          filter: `trip_id=eq.${tripId}`,
+        },
+        (payload) => {
+          // Member updated (e.g., joined_at set when accepting) - refresh members list
+          console.log("🔄 Member updated, refreshing members list", payload);
+          fetchMembers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tripId, user, supabase]);
+
+  const fetchTrip = async (forceRefresh = false) => {
     if (!tripId) return;
     
+    // Don't fetch if we already have trip data (unless forcing refresh)
+    if (trip && !forceRefresh) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -211,6 +285,53 @@ export default function TripPage({ params }: TripPageProps) {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMembers = async () => {
+    if (!tripId) return;
+    
+    try {
+      const response = await fetch(`/api/trips/${tripId}/members`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch members");
+      }
+
+      setMembers(data.members || []);
+      if (data.userRole) {
+        setUserRole(data.userRole);
+      }
+    } catch (err) {
+      console.error("Error fetching members:", err);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!tripId || !confirm("Are you sure you want to remove this member?")) {
+      return;
+    }
+
+    setRemovingMemberId(userId);
+    try {
+      const response = await fetch(`/api/trips/${tripId}/members/${userId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to remove member");
+      }
+
+      // Refresh members list
+      await fetchMembers();
+    } catch (err) {
+      console.error("Error removing member:", err);
+      alert(err instanceof Error ? err.message : "Failed to remove member");
+    } finally {
+      setRemovingMemberId(null);
     }
   };
 
@@ -279,7 +400,8 @@ export default function TripPage({ params }: TripPageProps) {
     }
   };
 
-  if (authLoading || loading) {
+  // Only show loading screen on initial load when we don't have data yet
+  if ((authLoading || loading) && !trip) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -292,7 +414,7 @@ export default function TripPage({ params }: TripPageProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <Link
             href="/dashboard"
@@ -314,7 +436,7 @@ export default function TripPage({ params }: TripPageProps) {
               </p>
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
               >
                 Go to Dashboard
               </Link>
@@ -330,7 +452,7 @@ export default function TripPage({ params }: TripPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -392,44 +514,90 @@ export default function TripPage({ params }: TripPageProps) {
           </div>
 
           {/* Members */}
-          {members.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Members
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Members {members.length > 0 && `(${members.length})`}
               </h3>
-              <div className="flex items-center gap-3">
+              {canEdit && (
+                <button
+                  onClick={() => setIsInviteModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Invite
+                </button>
+              )}
+            </div>
+            {members.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No members yet</p>
+                {canEdit && (
+                  <button
+                    onClick={() => setIsInviteModalOpen(true)}
+                    className="mt-3 text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                  >
+                    Invite your first member
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-4">
                 {members.map((member) => (
                   <div
                     key={member.user_id}
-                    className="flex items-center gap-2"
-                    title={member.profile?.full_name || "Member"}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-sm font-medium">
-                      {member.profile?.avatar_url ? (
-                        <img
-                          src={member.profile.avatar_url}
-                          alt={member.profile.full_name || "Member"}
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        <span>
-                          {(member.profile?.full_name || "U")[0].toUpperCase()}
-                        </span>
+                    <div className="relative">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-sm font-medium">
+                        {member.profile?.avatar_url ? (
+                          <img
+                            src={member.profile.avatar_url}
+                            alt={member.profile.full_name || "Member"}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <span>
+                            {(member.profile?.full_name || "U")[0].toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      {member.status === "pending" && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-white dark:border-gray-800" />
                       )}
                     </div>
-                    <div className="text-sm">
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {member.profile?.full_name || "Unknown"}
-                      </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">
+                          {member.profile?.full_name || "Unknown"}
+                        </p>
+                        {member.status === "pending" && (
+                          <span className="flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
+                            <Clock className="w-3 h-3" />
+                            Pending
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                         {member.role}
                       </p>
                     </div>
+                    {userRole === "owner" && member.user_id !== trip?.owner_id && (
+                      <button
+                        onClick={() => handleRemoveMember(member.user_id)}
+                        disabled={removingMemberId === member.user_id}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-all disabled:opacity-50"
+                        title="Remove member"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Sections */}
@@ -472,6 +640,14 @@ export default function TripPage({ params }: TripPageProps) {
           )}
         </div>
       </div>
+
+      {/* Invite Members Modal */}
+      <InviteMembersModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        tripId={tripId}
+        onMemberInvited={fetchMembers}
+      />
     </div>
   );
 }

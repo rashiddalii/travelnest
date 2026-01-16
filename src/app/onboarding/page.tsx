@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
 import { OnboardingScreen } from "@/components/onboarding/onboarding-screen";
@@ -38,8 +38,10 @@ const INTERESTS = [
   { id: "nature", label: "Nature & Wildlife", icon: Mountain },
 ];
 
-export default function OnboardingPage() {
+function OnboardingPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite");
   const supabase = createClient();
   const {
     currentStep,
@@ -111,8 +113,13 @@ export default function OnboardingPage() {
       // Clear onboarding store
       reset();
 
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // Redirect based on invite token
+      if (inviteToken) {
+        // If there's an invite token, go to invitations page to accept it
+        router.push(`/invitations?token=${inviteToken}`);
+      } else {
+        router.push("/dashboard");
+      }
       router.refresh();
     } catch (error) {
       console.error("Error saving preferences:", error);
@@ -383,5 +390,22 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <OnboardingPageContent />
+    </Suspense>
   );
 }

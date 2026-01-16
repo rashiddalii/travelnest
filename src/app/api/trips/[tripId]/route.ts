@@ -43,10 +43,13 @@ export async function GET(
       );
     }
 
-    // Check if user is a member of this trip
+    // Check if user is owner or has accepted invitation (joined_at IS NOT NULL)
+    const isOwner = trip.owner_id === user.id;
+    
+    // Check if user is a member of this trip and has accepted
     const { data: membership, error: membershipError } = await supabase
       .from("trip_members")
-      .select("role")
+      .select("role, joined_at")
       .eq("trip_id", tripId)
       .eq("user_id", user.id)
       .single();
@@ -55,10 +58,13 @@ export async function GET(
       console.error("Error checking membership:", membershipError);
     }
 
-    // If user is not a member and trip is private, deny access
-    if (!membership && trip.privacy === "private") {
+    // User must be owner OR have accepted invitation (joined_at IS NOT NULL)
+    const hasAccess = isOwner || (membership && membership.joined_at !== null);
+
+    // If user doesn't have access, deny
+    if (!hasAccess) {
       return NextResponse.json(
-        { error: "You don't have access to this trip" },
+        { error: "You don't have access to this trip. Please accept the invitation first." },
         { status: 403 }
       );
     }
@@ -78,9 +84,10 @@ export async function GET(
     const { data: members, error: membersError } = await supabase
       .from("trip_members")
       .select(
-        "user_id, role, joined_at, profiles!trip_members_user_id_fkey(id, full_name, avatar_url)"
+        "id, user_id, role, invited_at, joined_at, created_at, profiles!trip_members_user_id_fkey(id, full_name, avatar_url)"
       )
-      .eq("trip_id", tripId);
+      .eq("trip_id", tripId)
+      .order("created_at", { ascending: true });
 
     if (membersError) {
       console.error("Error fetching members:", membersError);
@@ -89,10 +96,14 @@ export async function GET(
     // Format members
     const formattedMembers =
       members?.map((member: any) => ({
+        id: member.id,
         user_id: member.user_id,
         role: member.role,
+        invited_at: member.invited_at,
         joined_at: member.joined_at,
+        created_at: member.created_at,
         profile: member.profiles,
+        status: member.joined_at ? "joined" : "pending",
       })) || [];
 
     return NextResponse.json({

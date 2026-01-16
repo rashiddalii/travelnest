@@ -6,10 +6,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
 
-function LoginForm() {
+function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/dashboard";
+  const inviteToken = searchParams.get("invite");
+  const redirect = inviteToken 
+    ? `/invitations?token=${inviteToken}` 
+    : searchParams.get("redirect") || "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -78,7 +81,11 @@ function LoginForm() {
       const onboardingCompleted = profile?.onboarding_completed ?? false;
 
       if (!onboardingCompleted) {
-        router.push("/onboarding");
+        // Preserve invite token in onboarding
+        const onboardingPath = inviteToken 
+          ? `/onboarding?invite=${inviteToken}` 
+          : "/onboarding";
+        router.push(onboardingPath);
       } else {
         router.push(redirect);
       }
@@ -344,7 +351,7 @@ export default function LoginPage() {
         </div>
       </div>
     }>
-      <LoginForm />
+      <LoginFormContent />
     </Suspense>
   );
 }

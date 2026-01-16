@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Mail, Lock, User, ArrowRight, Sparkles } from "lucide-react";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -78,6 +80,20 @@ export default function RegisterPage() {
       if (!data.user.email_confirmed_at && data.session === null) {
         router.push("/login?message=Check your email to confirm your account");
       } else if (data.session) {
+        // If there's an invite token, create membership record for new user
+        if (inviteToken) {
+          try {
+            await fetch("/api/invitations/complete-signup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: inviteToken }),
+            });
+          } catch (err) {
+            console.error("Error completing signup with invitation:", err);
+            // Continue anyway - they can accept manually
+          }
+        }
+
         // User is logged in, check onboarding status
         const { data: profile } = await supabase
           .from("profiles")
@@ -88,9 +104,17 @@ export default function RegisterPage() {
         const onboardingCompleted = profile?.onboarding_completed ?? false;
 
         if (!onboardingCompleted) {
-          router.push("/onboarding");
+          // Preserve invite token in onboarding
+          const onboardingPath = inviteToken 
+            ? `/onboarding?invite=${inviteToken}` 
+            : "/onboarding";
+          router.push(onboardingPath);
         } else {
-          router.push("/dashboard");
+          // After onboarding, go to invitations if there's a token
+          const redirectPath = inviteToken 
+            ? `/invitations?token=${inviteToken}` 
+            : "/dashboard";
+          router.push(redirectPath);
         }
         router.refresh();
       }
@@ -389,5 +413,22 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

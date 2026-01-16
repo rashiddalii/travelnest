@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { LogOut, Sparkles, Calendar, Lock, Users, Image as ImageIcon, Edit, Trash2, MoreVertical } from "lucide-react";
 import { format, isFuture, isPast } from "date-fns";
+import { NotificationIcon } from "@/components/notifications/notification-icon";
 
 interface Trip {
   id: string;
@@ -37,18 +38,23 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [showMenuTripId, setShowMenuTripId] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
+    // Only redirect if auth is done loading and no user
     if (initialized && !loading && !user) {
       router.push("/login");
     }
   }, [user, loading, initialized, router]);
 
   useEffect(() => {
-    if (user) {
+    // Only fetch once when we have user and haven't loaded yet
+    if (user && !hasLoadedRef.current && initialized && !loading) {
+      hasLoadedRef.current = true;
       fetchTrips();
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, initialized, loading]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -61,7 +67,12 @@ export default function DashboardPage() {
     }
   }, [showMenuTripId]);
 
-  const fetchTrips = async () => {
+  const fetchTrips = async (forceRefresh = false) => {
+    // Don't fetch if we've already loaded and not forcing refresh
+    if (!forceRefresh && hasLoadedRef.current && tripsLoading === false) {
+      return;
+    }
+
     setTripsLoading(true);
     setError(null);
     try {
@@ -102,8 +113,8 @@ export default function DashboardPage() {
         throw new Error(data.error || "Failed to delete trip");
       }
 
-      // Refresh trips list
-      await fetchTrips();
+      // Refresh trips list (force refresh)
+      await fetchTrips(true);
     } catch (err) {
       console.error("Error deleting trip:", err);
       alert(err instanceof Error ? err.message : "Failed to delete trip");
@@ -173,7 +184,8 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading || !initialized) {
+  // Only show full-page loading screen on initial load when we don't have user data yet
+  if ((loading || !initialized) && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -209,13 +221,16 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <NotificationIcon />
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
 
         {/* Create Trip Button */}
