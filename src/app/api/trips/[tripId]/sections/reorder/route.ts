@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function PUT(
@@ -11,6 +12,7 @@ export async function PUT(
 ) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -39,7 +41,7 @@ export async function PUT(
     // Check if user is a member of this trip with editor/owner role
     const { data: membership, error: membershipError } = await supabase
       .from("trip_members")
-      .select("role")
+      .select("role, joined_at")
       .eq("trip_id", tripId)
       .eq("user_id", user.id)
       .single();
@@ -48,22 +50,8 @@ export async function PUT(
       console.error("Error checking membership:", membershipError);
     }
 
-    // Get trip to check privacy
-    const { data: trip, error: tripError } = await supabase
-      .from("trips")
-      .select("privacy")
-      .eq("id", tripId)
-      .single();
-
-    if (tripError) {
-      return NextResponse.json(
-        { error: "Failed to verify trip access" },
-        { status: 500 }
-      );
-    }
-
-    // If user is not a member and trip is private, deny access
-    if (!membership && trip.privacy === "private") {
+    // Only accepted members can reorder sections
+    if (!membership || membership.joined_at === null) {
       return NextResponse.json(
         { error: "You don't have access to this trip" },
         { status: 403 }
@@ -71,7 +59,7 @@ export async function PUT(
     }
 
     // Only editors and owners can reorder sections
-    if (membership && !["owner", "editor"].includes(membership.role)) {
+    if (!["owner", "editor"].includes(membership.role)) {
       return NextResponse.json(
         { error: "You don't have permission to reorder sections" },
         { status: 403 }
@@ -80,7 +68,7 @@ export async function PUT(
 
     // Update all section positions in a transaction
     const updates = sectionOrders.map(({ id, position }: { id: string; position: number }) =>
-      supabase
+      admin
         .from("trip_sections")
         .update({ position })
         .eq("id", id)

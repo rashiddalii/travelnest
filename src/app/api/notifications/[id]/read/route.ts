@@ -24,7 +24,7 @@ export async function PUT(
 
     // Check if notification exists and belongs to user
     const { data: notification, error: notificationError } = await supabase
-      .from("notifications")
+      .from("user_inbox")
       .select("id, user_id")
       .eq("id", id)
       .single();
@@ -51,7 +51,7 @@ export async function PUT(
 
     // Mark as read
     const { data: updatedNotification, error: updateError } = await supabase
-      .from("notifications")
+      .from("user_inbox")
       .update({ read: true })
       .eq("id", id)
       .select()

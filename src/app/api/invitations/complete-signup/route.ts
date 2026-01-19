@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 /**
@@ -8,6 +9,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -76,15 +78,18 @@ export async function POST(request: Request) {
     }
 
     // Create trip member record for the newly signed up user
-    const { data: membership, error: memberError } = await supabase
+    const { data: membership, error: memberError } = await admin
       .from("trip_members")
-      .insert({
+      .upsert({
         trip_id: invitationToken.trip_id,
         user_id: user.id,
         role: invitationToken.role,
         invited_by: invitationToken.invited_by,
         invited_at: new Date().toISOString(),
         joined_at: null, // Will be set when they accept
+      }, {
+        onConflict: "trip_id,user_id",
+        ignoreDuplicates: false,
       })
       .select()
       .single();
@@ -100,34 +105,46 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create notification for the user
-    const { data: tripData } = await supabase
+    // Create inbox item for the user (server-side)
+    const { data: tripData } = await admin
       .from("trips")
       .select("title")
       .eq("id", invitationToken.trip_id)
       .single();
 
-    const { data: inviterProfile } = await supabase
+    const { data: inviterProfile } = await admin
       .from("profiles")
       .select("id, full_name")
       .eq("id", invitationToken.invited_by)
       .single();
 
-    if (tripData && inviterProfile) {
-      const tripTitle = tripData.title || "a trip";
-      const inviterName = inviterProfile.full_name || "Someone";
-      const notificationMessage = `${inviterName} invited you to join "${tripTitle}"`;
+    if (tripData) {
+      // Revoke any previous pending invites for same trip/user
+      await admin
+        .from("user_inbox")
+        .update({ status: "revoked", read: true })
+        .eq("user_id", user.id)
+        .eq("trip_id", invitationToken.trip_id)
+        .eq("type", "trip_invite")
+        .eq("status", "pending");
 
-      await supabase.rpc("create_notification", {
-        p_user_id: user.id,
-        p_type: "trip_invite",
-        p_trip_id: invitationToken.trip_id,
-        p_inviter_id: inviterProfile.id,
-        p_message: notificationMessage,
-        p_metadata: {
+      const tripTitle = tripData.title || "a trip";
+      const inviterName = inviterProfile?.full_name || "Someone";
+      const message = `${inviterName} invited you to join "${tripTitle}"`;
+
+      await admin.from("user_inbox").insert({
+        user_id: user.id,
+        type: "trip_invite",
+        trip_id: invitationToken.trip_id,
+        actor_id: invitationToken.invited_by,
+        message,
+        read: false,
+        status: "pending",
+        metadata: {
           role: invitationToken.role,
           trip_title: tripTitle,
           invitation_token_id: invitationToken.id,
+          invitation_token: token,
         },
       });
     }

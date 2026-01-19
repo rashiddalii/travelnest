@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 // Helper function to generate unique slug
@@ -29,7 +30,7 @@ function generateSlug(title: string, startDate?: string): string {
 
 // Helper function to ensure unique slug
 async function ensureUniqueSlug(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   baseSlug: string
 ): Promise<string> {
   let slug = baseSlug;
@@ -74,6 +75,7 @@ const DEFAULT_SECTIONS = [
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -122,10 +124,11 @@ export async function POST(request: Request) {
 
     // Generate unique slug
     const baseSlug = generateSlug(title, start_date);
-    const uniqueSlug = await ensureUniqueSlug(supabase, baseSlug);
+    // Must be checked with service role so we don't miss private trips
+    const uniqueSlug = await ensureUniqueSlug(admin, baseSlug);
 
     // Create trip
-    const { data: trip, error: tripError } = await supabase
+    const { data: trip, error: tripError } = await admin
       .from("trips")
       .insert({
         slug: uniqueSlug,
@@ -169,7 +172,7 @@ export async function POST(request: Request) {
       metadata: {},
     }));
 
-    const { error: sectionsError } = await supabase
+    const { error: sectionsError } = await admin
       .from("trip_sections")
       .insert(sectionsToInsert);
 
@@ -180,7 +183,7 @@ export async function POST(request: Request) {
     }
 
     // Add owner as trip member
-    const { error: memberError } = await supabase
+    const { error: memberError } = await admin
       .from("trip_members")
       .insert({
         trip_id: trip.id,
@@ -195,7 +198,7 @@ export async function POST(request: Request) {
     }
 
     // Create activity entry
-    const { error: activityError } = await supabase
+    const { error: activityError } = await admin
       .from("activities")
       .insert({
         trip_id: trip.id,

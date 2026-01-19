@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function DELETE(
@@ -13,6 +14,7 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -94,7 +96,7 @@ export async function DELETE(
       .single();
 
     // Delete member
-    const { data: deletedMember, error: deleteError } = await supabase
+    const { data: deletedMember, error: deleteError } = await admin
       .from("trip_members")
       .delete()
       .eq("id", member.id)
@@ -124,43 +126,31 @@ export async function DELETE(
       );
     }
 
-    // If member had pending invitation (joined_at is null), mark notifications as expired/revoked
+    // If member had pending invitation (joined_at is null), revoke their inbox invite + token(s)
     if (memberDetails && !memberDetails.joined_at) {
-      // Mark related notifications as revoked
-      await supabase
-        .from("notifications")
-        .update({ 
-          status: "revoked",
-          read: true, // Also mark as read
-        })
+      await admin
+        .from("user_inbox")
+        .update({ status: "revoked", read: true })
         .eq("trip_id", tripId)
         .eq("user_id", userId)
         .eq("type", "trip_invite")
-        .in("status", ["pending"]); // Only update pending invitations
+        .eq("status", "pending");
 
-      // Get user's email from notifications to mark tokens as used
-      const { data: notifications } = await supabase
-        .from("notifications")
-        .select("metadata")
-        .eq("trip_id", tripId)
-        .eq("user_id", userId)
-        .eq("type", "trip_invite")
-        .limit(1)
-        .maybeSingle();
-
-      // Try to get email from invitation token
-      const { data: tokens } = await supabase
-        .from("invitation_tokens")
+      // If we can resolve email from profiles, revoke pending tokens for that email+trip
+      const { data: removedProfile } = await admin
+        .from("profiles")
         .select("email")
-        .eq("trip_id", tripId)
-        .is("used_at", null)
-        .limit(1);
+        .eq("id", userId)
+        .single();
 
-      // Mark invitation tokens as used (expired)
-      if (tokens && tokens.length > 0) {
-        // Get the user's email - we'll need to query auth.users or get it from a notification
-        // For now, we'll mark tokens by trip_id and check user_id when they try to use it
-        // The token will be invalidated when they try to accept
+      const email = removedProfile?.email?.toLowerCase();
+      if (email) {
+        await admin
+          .from("invitation_tokens")
+          .update({ used_at: new Date().toISOString() })
+          .eq("trip_id", tripId)
+          .eq("email", email)
+          .is("used_at", null);
       }
     }
 

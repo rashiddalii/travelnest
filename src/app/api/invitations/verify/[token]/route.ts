@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -6,27 +6,15 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> | { token: string } }
 ) {
   try {
-    const supabase = await createClient();
+    const admin = createAdminClient();
     
     // Handle params as Promise (Next.js 15+) or object (Next.js 14)
     const { token } = params instanceof Promise ? await params : params;
 
-    // Get invitation token
-    const { data: invitationToken, error: tokenError } = await supabase
+    // Use service role to fetch invitation context (trip title, inviter name) without RLS friction.
+    const { data: invitationToken, error: tokenError } = await admin
       .from("invitation_tokens")
-      .select(
-        `
-        id,
-        trip_id,
-        email,
-        role,
-        expires_at,
-        used_at,
-        invited_by,
-        trips!inner(id, title),
-        profiles!invitation_tokens_invited_by_fkey(id, full_name)
-        `
-      )
+      .select("id, trip_id, email, role, expires_at, used_at, invited_by")
       .eq("token", token)
       .single();
 
@@ -59,18 +47,31 @@ export async function GET(
       );
     }
 
-    // Check if user exists
-    const { data: userIdData } = await supabase.rpc(
-      "get_user_id_by_email",
-      { user_email: invitationToken.email }
-    );
+    const { data: tripData } = await admin
+      .from("trips")
+      .select("title")
+      .eq("id", invitationToken.trip_id)
+      .single();
 
-    const isExistingUser = !!userIdData;
+    const { data: inviterProfile } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", invitationToken.invited_by)
+      .single();
+
+    const normalizedEmail = invitationToken.email?.toLowerCase() || "";
+    const { data: existingProfile } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+
+    const isExistingUser = !!existingProfile;
 
     return NextResponse.json({
       valid: true,
-      tripTitle: (invitationToken.trips as any)?.title || "a trip",
-      inviterName: (invitationToken.profiles as any)?.full_name || "Someone",
+      tripTitle: tripData?.title || "a trip",
+      inviterName: inviterProfile?.full_name || "Someone",
       role: invitationToken.role,
       email: invitationToken.email,
       tripId: invitationToken.trip_id,

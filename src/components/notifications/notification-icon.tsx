@@ -36,13 +36,13 @@ export function NotificationIcon({ className }: NotificationIconProps) {
     // Set up real-time subscription for notifications
     // RLS will automatically filter to user's notifications
     const channel = supabase
-      .channel(`notifications-${Date.now()}`)
+      .channel(`user-inbox-${Date.now()}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "notifications",
+          table: "user_inbox",
         },
         () => {
           // Refresh count when notifications change

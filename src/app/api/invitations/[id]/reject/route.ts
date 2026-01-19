@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -7,6 +8,7 @@ export async function POST(
 ) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -22,9 +24,9 @@ export async function POST(
     // Handle params as Promise (Next.js 15+) or object (Next.js 14)
     const { id } = params instanceof Promise ? await params : params;
 
-    // Get notification to find trip_id
+    // Get inbox item to find trip_id
     const { data: notification, error: notificationError } = await supabase
-      .from("notifications")
+      .from("user_inbox")
       .select("id, user_id, trip_id, type")
       .eq("id", id)
       .single();
@@ -77,7 +79,7 @@ export async function POST(
         console.log("⚠️ Member already accepted invitation, cannot remove from trip");
       } else {
         // Member is pending - delete them
-        const { data: deletedMembers, error: deleteError } = await supabase
+        const { data: deletedMembers, error: deleteError } = await admin
           .from("trip_members")
           .delete()
           .eq("trip_id", notification.trip_id)
@@ -105,7 +107,7 @@ export async function POST(
 
     // Update notification status to rejected instead of deleting (keep history)
     await supabase
-      .from("notifications")
+      .from("user_inbox")
       .update({ 
         status: "rejected",
         read: true,

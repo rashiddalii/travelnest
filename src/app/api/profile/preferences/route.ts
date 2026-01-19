@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function PUT(request: Request) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -35,7 +37,7 @@ export async function PUT(request: Request) {
     }
 
     // Update profile preferences
-    const { error } = await supabase
+    const { error } = await admin
       .from("profiles")
       .update({
         preferences,

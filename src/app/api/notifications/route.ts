@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -22,13 +24,13 @@ export async function GET(request: Request) {
 
     // Build query - use simpler approach without foreign key names
     let query = supabase
-      .from("notifications")
+      .from("user_inbox")
       .select(
         `
         id,
         type,
         trip_id,
-        inviter_id,
+        actor_id,
         message,
         read,
         status,
@@ -76,7 +78,7 @@ export async function GET(request: Request) {
 
       // Fetch trip data if trip_id exists
       if (notification.trip_id) {
-        const { data: tripData } = await supabase
+        const { data: tripData } = await admin
           .from("trips")
           .select("id, title, cover_photo_url")
           .eq("id", notification.trip_id)
@@ -85,11 +87,11 @@ export async function GET(request: Request) {
       }
 
       // Fetch inviter data if inviter_id exists
-      if (notification.inviter_id) {
-        const { data: inviterData } = await supabase
+      if ((notification as any).actor_id) {
+        const { data: inviterData } = await admin
           .from("profiles")
           .select("id, full_name, avatar_url")
-          .eq("id", notification.inviter_id)
+          .eq("id", (notification as any).actor_id)
           .single();
         inviter = inviterData;
       }
@@ -98,7 +100,8 @@ export async function GET(request: Request) {
         id: notification.id,
         type: notification.type,
         trip_id: notification.trip_id,
-        inviter_id: notification.inviter_id,
+        // keep response shape stable for the UI
+        inviter_id: (notification as any).actor_id,
         message: notification.message,
         read: notification.read,
         status: (notification as any).status || "pending",
@@ -111,7 +114,7 @@ export async function GET(request: Request) {
 
     // Get unread count
     const { count: unreadCount, error: countError } = await supabase
-      .from("notifications")
+      .from("user_inbox")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("read", false);

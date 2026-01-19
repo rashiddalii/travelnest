@@ -61,14 +61,13 @@ src/
 
 ## 🗄️ Database Setup
 
-The database schema is in `supabase/migrations/001_initial_schema.sql`.
+The database schema is managed via Supabase SQL migrations in `supabase/migrations/` (source of truth).
 
 **To set up:**
-1. Go to your Supabase dashboard
-2. Open SQL Editor
-3. Run the migration file
+1. Use the Supabase CLI (no UI schema edits)
+2. Run migrations with `npx supabase db push`
 
-See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed instructions.
+See [SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md) for detailed instructions.
 
 ## ✅ Completed Features
 

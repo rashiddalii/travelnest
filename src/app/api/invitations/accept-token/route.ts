@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
     // Get invitation token
     const { data: invitationToken, error: tokenError } = await supabase
       .from("invitation_tokens")
-      .select("id, trip_id, email, role, expires_at, used_at")
+      .select("id, trip_id, email, role, expires_at, used_at, invited_by")
       .eq("token", token)
       .single();
 
@@ -81,12 +83,13 @@ export async function POST(request: Request) {
     }
 
     // Create or update trip member record
-    const { data: membership, error: memberError } = await supabase
+    const { data: membership, error: memberError } = await admin
       .from("trip_members")
       .upsert({
         trip_id: invitationToken.trip_id,
         user_id: user.id,
         role: invitationToken.role,
+        invited_by: invitationToken.invited_by,
         invited_at: new Date().toISOString(),
         joined_at: new Date().toISOString(), // Accept immediately
       }, {
@@ -105,14 +108,14 @@ export async function POST(request: Request) {
     }
 
     // Mark token as used
-    await supabase
+    await admin
       .from("invitation_tokens")
       .update({ used_at: new Date().toISOString() })
       .eq("id", invitationToken.id);
 
-    // Update notification status to accepted
+    // Update inbox status to accepted (if an inbox item exists)
     await supabase
-      .from("notifications")
+      .from("user_inbox")
       .update({ 
         status: "accepted",
         read: true,

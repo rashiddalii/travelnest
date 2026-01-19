@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -7,6 +8,7 @@ export async function GET(
 ) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -70,7 +72,7 @@ export async function GET(
     }
 
     // Get trip sections
-    const { data: sections, error: sectionsError } = await supabase
+    const { data: sections, error: sectionsError } = await admin
       .from("trip_sections")
       .select("*")
       .eq("trip_id", tripId)
@@ -81,7 +83,7 @@ export async function GET(
     }
 
     // Get trip members
-    const { data: members, error: membersError } = await supabase
+    const { data: members, error: membersError } = await admin
       .from("trip_members")
       .select(
         "id, user_id, role, invited_at, joined_at, created_at, profiles!trip_members_user_id_fkey(id, full_name, avatar_url)"
@@ -139,6 +141,7 @@ export async function PUT(
 ) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -214,7 +217,7 @@ export async function PUT(
     if (privacy !== undefined) updateData.privacy = privacy;
     if (cover_photo_url !== undefined) updateData.cover_photo_url = cover_photo_url || null;
 
-    const { data: updatedTrip, error: updateError } = await supabase
+    const { data: updatedTrip, error: updateError } = await admin
       .from("trips")
       .update(updateData)
       .eq("id", tripId)
@@ -248,6 +251,7 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -292,7 +296,7 @@ export async function DELETE(
     }
 
     // Delete trip (cascade will delete related records)
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await admin
       .from("trips")
       .delete()
       .eq("id", tripId);

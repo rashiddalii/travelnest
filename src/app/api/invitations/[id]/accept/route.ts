@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -7,6 +8,7 @@ export async function POST(
 ) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -22,9 +24,9 @@ export async function POST(
     // Handle params as Promise (Next.js 15+) or object (Next.js 14)
     const { id } = params instanceof Promise ? await params : params;
 
-    // Get notification to find trip_id
+    // Get inbox item to find trip_id
     const { data: notification, error: notificationError } = await supabase
-      .from("notifications")
+      .from("user_inbox")
       .select("id, user_id, trip_id, type")
       .eq("id", id)
       .single();
@@ -82,11 +84,8 @@ export async function POST(
 
     // If already accepted, just return success
     if (existingMembership?.joined_at) {
-      // Mark notification as read anyway
-      await supabase
-        .from("notifications")
-        .update({ read: true })
-        .eq("id", id);
+      // Mark inbox as read anyway
+      await supabase.from("user_inbox").update({ read: true }).eq("id", id);
 
       return NextResponse.json({
         success: true,
@@ -96,7 +95,7 @@ export async function POST(
     }
 
     // Update trip_members to set joined_at
-    const { data: membership, error: updateError } = await supabase
+    const { data: membership, error: updateError } = await admin
       .from("trip_members")
       .update({ joined_at: new Date().toISOString() })
       .eq("trip_id", notification.trip_id)
@@ -133,7 +132,7 @@ export async function POST(
       if (currentMembership.joined_at) {
         // Already accepted, just mark notification as read
         await supabase
-          .from("notifications")
+          .from("user_inbox")
           .update({ read: true })
           .eq("id", id);
 
@@ -152,7 +151,7 @@ export async function POST(
 
     // Mark notification as read and update status to accepted
     await supabase
-      .from("notifications")
+      .from("user_inbox")
       .update({ 
         read: true,
         status: "accepted",

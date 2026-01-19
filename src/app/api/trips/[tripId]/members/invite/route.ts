@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { sendInvitationEmail } from "@/lib/email";
 import { randomBytes } from "crypto";
 
-// Generate secure random token
 function generateToken(): string {
   return randomBytes(32).toString("hex");
 }
@@ -12,39 +12,28 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ tripId: string }> | { tripId: string } }
 ) {
-  const requestId = Math.random().toString(36).substring(7);
-  console.log(`📧 [${requestId}] Invitation request started`);
-  
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
+
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Not authenticated" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Handle params as Promise (Next.js 15+) or object (Next.js 14)
     const { tripId } = params instanceof Promise ? await params : params;
 
     const body = await request.json();
     const { email, role = "editor" } = body;
-    
-    console.log(`📧 [${requestId}] Inviting:`, { email: email.trim(), role, tripId });
 
     if (!email || !email.trim()) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    // Validate role
     if (!["editor", "viewer"].includes(role)) {
       return NextResponse.json(
         { error: "Invalid role. Must be 'editor' or 'viewer'" },
@@ -54,7 +43,7 @@ export async function POST(
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Get trip and check permissions
+    // Trip access + inviter permissions (checked with user session + RLS)
     const { data: trip, error: tripError } = await supabase
       .from("trips")
       .select("id, title, owner_id")
@@ -63,10 +52,7 @@ export async function POST(
 
     if (tripError) {
       if (tripError.code === "PGRST116") {
-        return NextResponse.json(
-          { error: "Trip not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Trip not found" }, { status: 404 });
       }
       return NextResponse.json(
         { error: tripError.message || "Failed to fetch trip" },
@@ -74,29 +60,39 @@ export async function POST(
       );
     }
 
-    // Check if user is owner or editor
-    const { data: membership, error: membershipError } = await supabase
-      .from("trip_members")
-      .select("role")
-      .eq("trip_id", tripId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const isOwner = trip.owner_id === user.id;
 
-    if (membershipError && membershipError.code !== "PGRST116") {
-      console.error("Error checking membership:", membershipError);
+    // If not owner, must be an accepted editor to invite
+    let inviterRole: string | null = isOwner ? "owner" : null;
+    if (!isOwner) {
+      const { data: membership, error: membershipError } = await supabase
+        .from("trip_members")
+        .select("role, joined_at")
+        .eq("trip_id", tripId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (membershipError && membershipError.code !== "PGRST116") {
+        console.error("Error checking membership:", membershipError);
+      }
+
+      if (!membership || membership.joined_at === null) {
+        return NextResponse.json(
+          { error: "You don't have access to invite members for this trip" },
+          { status: 403 }
+        );
+      }
+
+      inviterRole = membership.role;
     }
 
-    const userRole = trip.owner_id === user.id ? "owner" : membership?.role;
-    
-    // Only owner and editors can invite
-    if (userRole !== "owner" && userRole !== "editor") {
+    if (inviterRole !== "owner" && inviterRole !== "editor") {
       return NextResponse.json(
         { error: "Only trip owners and editors can invite members" },
         { status: 403 }
       );
     }
 
-    // Get inviter's profile
     const { data: inviterProfile, error: inviterProfileError } = await supabase
       .from("profiles")
       .select("id, full_name")
@@ -110,89 +106,53 @@ export async function POST(
       );
     }
 
-    // Check if user already exists by email
-    const { data: userIdData, error: userIdError } = await supabase.rpc(
-      "get_user_id_by_email",
-      { user_email: normalizedEmail }
-    );
+    // Lookup invited user via profiles.email (server-only; service role)
+    const { data: invitedProfile } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
 
-    const isExistingUser = !!userIdData && !userIdError;
-    const invitedUserId = userIdData as string | null;
+    const invitedUserId = (invitedProfile as any)?.id as string | undefined;
+    const isExistingUser = !!invitedUserId;
 
-    // Check if user is already a member (if they exist)
-    if (isExistingUser && invitedUserId) {
-      const { data: existingMember, error: existingMemberError } = await supabase
+    // If invited user exists, ensure they aren't already joined
+    if (invitedUserId) {
+      const { data: existingMember } = await admin
         .from("trip_members")
-        .select("id, role, joined_at")
+        .select("id, joined_at")
         .eq("trip_id", tripId)
         .eq("user_id", invitedUserId)
         .maybeSingle();
 
-      if (existingMemberError && existingMemberError.code !== "PGRST116") {
-        console.error("Error checking existing member:", existingMemberError);
-      }
-
-      if (existingMember) {
-        if (existingMember.joined_at) {
-          return NextResponse.json(
-            { error: "User is already a member of this trip" },
-            { status: 400 }
-          );
-        } else {
-          // User is already invited but hasn't accepted - check if there's a recent invitation
-          // If invited within last hour, don't allow duplicate invitation
-          const { data: recentToken } = await supabase
-            .from("invitation_tokens")
-            .select("created_at")
-            .eq("trip_id", tripId)
-            .eq("email", normalizedEmail)
-            .is("used_at", null)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (recentToken) {
-            const tokenAge = new Date().getTime() - new Date(recentToken.created_at).getTime();
-            const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
-            
-            if (tokenAge < oneHour) {
-              return NextResponse.json(
-                { error: "An invitation was already sent recently. Please wait before sending another." },
-                { status: 400 }
-              );
-            }
-          }
-          // Otherwise, allow resending invitation (user might have lost the email)
-        }
+      if (existingMember?.joined_at) {
+        return NextResponse.json(
+          { error: "User is already a member of this trip" },
+          { status: 400 }
+        );
       }
     }
 
-    // Generate secure invitation token
+    // Create invitation token
     const token = generateToken();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Delete any existing pending invitation tokens for this trip/email
-    const { data: deletedTokens } = await supabase
+    // Remove any existing pending tokens for this trip/email (keeps unique partial index happy)
+    await admin
       .from("invitation_tokens")
       .delete()
       .eq("trip_id", tripId)
       .eq("email", normalizedEmail)
-      .is("used_at", null)
-      .select();
+      .is("used_at", null);
 
-    if (deletedTokens && deletedTokens.length > 0) {
-      console.log(`📧 Deleted ${deletedTokens.length} existing invitation token(s) for ${normalizedEmail}`);
-    }
-
-    // Create new invitation token
-    const { data: invitationToken, error: tokenError } = await supabase
+    const { data: invitationToken, error: tokenError } = await admin
       .from("invitation_tokens")
       .insert({
         trip_id: tripId,
         email: normalizedEmail,
-        role: role,
-        token: token,
+        role,
+        token,
         invited_by: inviterProfile.id,
         expires_at: expiresAt.toISOString(),
         used_at: null,
@@ -200,107 +160,78 @@ export async function POST(
       .select()
       .single();
 
-    if (tokenError) {
-      console.error("❌ Error creating invitation token:", tokenError);
+    if (tokenError || !invitationToken) {
+      console.error("Error creating invitation token:", tokenError);
       return NextResponse.json(
-        { error: "Failed to create invitation token" },
+        { error: tokenError?.message || "Failed to create invitation token" },
         { status: 500 }
       );
     }
 
-    console.log("✅ Created invitation token:", {
-      tokenId: invitationToken.id,
-      email: normalizedEmail,
-      tripId,
-      isExistingUser,
-    });
-
-    // Create or update trip member record only if user exists
-    // For new users, we'll create the member record when they sign up and accept the invitation
-    let newMember = null;
-    if (isExistingUser && invitedUserId) {
-      const { data: memberData, error: memberError } = await supabase
+    // If the invited user already exists, create/update their pending membership and inbox item.
+    // For brand new users, membership + inbox will be created after signup using the token.
+    let member: any = null;
+    if (invitedUserId) {
+      const { data: memberData, error: memberError } = await admin
         .from("trip_members")
-        .upsert({
-          trip_id: tripId,
-          user_id: invitedUserId,
-          role: role,
-          invited_by: inviterProfile.id,
-          invited_at: new Date().toISOString(),
-          joined_at: null,
-        }, {
-          onConflict: "trip_id,user_id",
-          ignoreDuplicates: false,
-        })
+        .upsert(
+          {
+            trip_id: tripId,
+            user_id: invitedUserId,
+            role,
+            invited_by: inviterProfile.id,
+            invited_at: new Date().toISOString(),
+            joined_at: null,
+          },
+          {
+            onConflict: "trip_id,user_id",
+            ignoreDuplicates: false,
+          }
+        )
         .select()
         .single();
 
       if (memberError) {
-        console.error("Error creating trip member:", memberError);
-        // Continue anyway - we'll create it when they accept
+        console.error("Error creating/updating trip member:", memberError);
       } else {
-        newMember = memberData;
+        member = memberData;
       }
 
-      // Create notification for existing user (only if one doesn't already exist)
-      // Check if there's already a pending/unread notification for this invitation
-      const { data: existingNotification } = await supabase
-        .from("notifications")
-        .select("id, read, status")
+      // Revoke any previous pending inbox invites for the same trip/user
+      await admin
+        .from("user_inbox")
+        .update({ status: "revoked", read: true })
         .eq("user_id", invitedUserId)
         .eq("trip_id", tripId)
         .eq("type", "trip_invite")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq("status", "pending");
 
-      // Only create notification if:
-      // 1. No notification exists, OR
-      // 2. Existing notification is already accepted/rejected/revoked (old invitation)
-      const shouldCreateNotification = !existingNotification || 
-        (existingNotification.status && !["pending", null].includes(existingNotification.status));
+      const tripTitle = trip.title || "a trip";
+      const inviterName = inviterProfile.full_name || "Someone";
+      const message = `${inviterName} invited you to join "${tripTitle}"`;
 
-      if (shouldCreateNotification) {
-        const tripTitle = trip.title || "a trip";
-        const inviterName = inviterProfile.full_name || "Someone";
-        const notificationMessage = `${inviterName} invited you to join "${tripTitle}"`;
-
-        const { data: notificationId, error: notificationError } = await supabase.rpc("create_notification", {
-          p_user_id: invitedUserId,
-          p_type: "trip_invite",
-          p_trip_id: tripId,
-          p_inviter_id: inviterProfile.id,
-          p_message: notificationMessage,
-          p_metadata: {
-            role: role,
-            trip_title: tripTitle,
-            invitation_token_id: invitationToken.id,
-          },
-        });
-
-        if (notificationError) {
-          console.error(`❌ [${requestId}] Error creating notification:`, notificationError);
-        } else {
-          console.log(`✅ [${requestId}] Created notification:`, {
-            notificationId,
-            userId: invitedUserId,
-            tripId,
-          });
-        }
-      } else {
-        console.log(`⏭️  [${requestId}] Skipping duplicate notification - one already exists:`, {
-          notificationId: existingNotification.id,
-          status: existingNotification.status,
-          read: existingNotification.read,
-        });
-      }
+      await admin.from("user_inbox").insert({
+        user_id: invitedUserId,
+        type: "trip_invite",
+        trip_id: tripId,
+        actor_id: inviterProfile.id,
+        message,
+        read: false,
+        status: "pending",
+        metadata: {
+          role,
+          trip_title: tripTitle,
+          invitation_token_id: invitationToken.id,
+          invitation_token: invitationToken.token,
+        },
+      });
     }
 
     // Send invitation email
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const invitationLink = isExistingUser
-      ? `${baseUrl}/invite/${token}` // Existing user: direct to invitations
-      : `${baseUrl}/invite/${token}?signup=true`; // New user: signup flow
+      ? `${baseUrl}/invite/${token}`
+      : `${baseUrl}/invite/${token}?signup=true`;
 
     const tripTitle = trip.title || "a trip";
     const inviterName = inviterProfile.full_name || "Someone";
@@ -314,27 +245,20 @@ export async function POST(
       role,
     });
 
-    // Email service logs the details - implementation will be added later
     if (!emailResult.success) {
-      console.error("❌ Email service error:", emailResult.error);
-      // Don't fail the invitation if email fails - they can still accept via app
+      console.error("Email service error:", emailResult.error);
     }
 
-    console.log(`✅ [${requestId}] Invitation completed successfully`);
-    
     return NextResponse.json({
       success: true,
       message: isExistingUser
         ? "Invitation sent successfully"
         : "Invitation email sent. They'll need to sign up first.",
-      member: newMember,
+      member,
       isNewUser: !isExistingUser,
     });
   } catch (error) {
-    console.error(`❌ [${requestId}] Unexpected error inviting member:`, error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    console.error("Unexpected error inviting member:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

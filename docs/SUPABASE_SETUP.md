@@ -22,7 +22,10 @@
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 ```
+
+**Important:** `SUPABASE_SERVICE_ROLE_KEY` is **server-only**. Never expose it to the browser (do not prefix it with `NEXT_PUBLIC_`).
 
 ## 3. Disable Email Verification (For Development)
 
@@ -36,29 +39,38 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 
 ## 4. Set Up Database Schema
 
-### Option A: Using Supabase SQL Editor (Recommended)
+### ✅ Required: Using Supabase CLI (Recommended + Enforced)
 
-1. Go to **SQL Editor** in your Supabase dashboard
-2. Click **"New query"**
-3. Copy and paste the contents of `supabase/migrations/001_initial_schema.sql`
-4. Click **"Run"** (or press `Ctrl+Enter`)
-5. You should see "Success. No rows returned"
-
-### Option B: Using Supabase CLI
+This project is **migration-driven**. Do not apply schema changes from the Supabase UI.
 
 ```bash
-# Install Supabase CLI (if not installed)
-npm install -g supabase
+# From: travelnest-web/
 
-# Login to Supabase
-supabase login
+# Supabase CLI (no global install required)
+npx supabase --version
 
-# Link your project
-supabase link --project-ref your-project-ref
+# Login + link your project (first time only)
+npx supabase login
+npx supabase link --project-ref your-project-ref
 
-# Run migrations
-supabase db push
+# Apply migrations to the linked database
+npx supabase db push
 ```
+
+### 🚫 Not allowed: Supabase SQL Editor / Studio for schema changes
+
+If you make schema changes in the UI, your local migrations drift and the project becomes hard to maintain.
+
+### Migration Structure (Source of Truth)
+
+All schema lives in `travelnest-web/supabase/migrations/` and is intentionally split:
+- `001_schema.sql` (tables only; includes `user_inbox` which replaces `notifications`)
+- `002_triggers.sql` (auth + updated_at triggers)
+- `003_indexes.sql`
+- `004_rls_enable.sql`
+- `005_rls_helpers.sql`
+- `006_rls_read_policies.sql` (SELECT policies only)
+- `007_rls_user_inbox.sql` (inbox SELECT/UPDATE only)
 
 ## 5. Verify Tables Were Created
 

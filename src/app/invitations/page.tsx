@@ -121,7 +121,7 @@ function InvitationsPageContent() {
         {
           event: "INSERT",
           schema: "public",
-          table: "notifications",
+          table: "user_inbox",
           filter: `user_id=eq.${user.id}`,
         },
         () => {
@@ -331,7 +331,7 @@ function InvitationsPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -343,7 +343,7 @@ function InvitationsPageContent() {
             Back to Dashboard
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
               <Bell className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -389,7 +389,7 @@ function InvitationsPageContent() {
               </p>
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
               >
                 <Sparkles className="w-5 h-5" />
                 Go to Dashboard
@@ -406,7 +406,7 @@ function InvitationsPageContent() {
               >
                 <div className="flex flex-col md:flex-row gap-6">
                   {/* Cover Photo */}
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     {invitation.trip?.cover_photo_url ? (
                       <div className="w-full md:w-48 h-48 rounded-lg overflow-hidden">
                         <img
@@ -419,7 +419,7 @@ function InvitationsPageContent() {
                         />
                       </div>
                     ) : (
-                      <div className="w-full md:w-48 h-48 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                      <div className="w-full md:w-48 h-48 rounded-lg bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center">
                         <ImageIcon className="w-12 h-12 text-white/50" />
                       </div>
                     )}
@@ -467,7 +467,7 @@ function InvitationsPageContent() {
                       <button
                         onClick={() => handleAccept(invitation)}
                         disabled={processingId === invitation.id}
-                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Check className="w-5 h-5" />
                         {processingId === invitation.id ? "Accepting..." : "Accept"}
