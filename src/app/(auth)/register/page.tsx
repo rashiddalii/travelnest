@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { toUserFriendlyAuthError } from "@/lib/auth/client-errors";
 import { Mail, Lock, User, ArrowRight, Sparkles } from "lucide-react";
 
 function RegisterForm() {
@@ -18,7 +19,7 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [authMethod, setAuthMethod] = useState<"magic" | "password">("magic");
+  const [authMethod, setAuthMethod] = useState<"magic" | "password">("password");
 
   const supabase = createClient();
 
@@ -37,7 +38,7 @@ function RegisterForm() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setError(toUserFriendlyAuthError(error.message));
     } else {
       setMagicLinkSent(true);
     }
@@ -60,26 +61,31 @@ function RegisterForm() {
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+      });
 
-    setLoading(false);
+      if (error) {
+        setError(toUserFriendlyAuthError(error.message));
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      setError(error.message);
-    } else if (data.user) {
       // If email confirmation is required, show message
-      if (!data.user.email_confirmed_at && data.session === null) {
+      if (data.user && !data.user.email_confirmed_at && data.session === null) {
+        setLoading(false);
         router.push("/login?message=Check your email to confirm your account");
-      } else if (data.session) {
+        return;
+      }
+
+      // If logged in immediately
+      if (data.session && data.user) {
         // If there's an invite token, create membership record for new user
         if (inviteToken) {
           try {
@@ -90,34 +96,40 @@ function RegisterForm() {
             });
           } catch (err) {
             console.error("Error completing signup with invitation:", err);
-            // Continue anyway - they can accept manually
           }
         }
 
-        // User is logged in, check onboarding status
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("onboarding_completed")
-          .eq("id", data.user.id)
-          .single();
+        // Determine onboarding status via backend (avoids client DB reads)
+        const prefsRes = await fetch("/api/profile/preferences");
+        const prefsData = await prefsRes.json().catch(() => ({}));
+        const onboardingCompleted = prefsRes.ok
+          ? (prefsData.onboarding_completed ?? false)
+          : false;
 
-        const onboardingCompleted = profile?.onboarding_completed ?? false;
+        setLoading(false);
 
         if (!onboardingCompleted) {
-          // Preserve invite token in onboarding
-          const onboardingPath = inviteToken 
-            ? `/onboarding?invite=${inviteToken}` 
+          const onboardingPath = inviteToken
+            ? `/onboarding?invite=${inviteToken}`
             : "/onboarding";
           router.push(onboardingPath);
         } else {
-          // After onboarding, go to invitations if there's a token
-          const redirectPath = inviteToken 
-            ? `/invitations?token=${inviteToken}` 
+          const redirectPath = inviteToken
+            ? `/invitations?token=${inviteToken}`
             : "/dashboard";
           router.push(redirectPath);
         }
         router.refresh();
+        return;
       }
+
+      // Fallback
+      setLoading(false);
+      router.push("/login?message=Check your email to confirm your account");
+    } catch (err) {
+      console.error("Error signing up:", err);
+      setLoading(false);
+      setError(err instanceof Error ? err.message : "Failed to create account");
     }
   };
 
@@ -135,13 +147,13 @@ function RegisterForm() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setError(toUserFriendlyAuthError(error.message));
     }
   };
 
   if (magicLinkSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4">
         <div className="max-w-md w-full">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -151,7 +163,7 @@ function RegisterForm() {
               Check your email
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              We've sent a magic link to <strong>{email}</strong>. Click the
+              We&apos;ve sent a magic link to <strong>{email}</strong>. Click the
               link to complete your sign up.
             </p>
             <button
@@ -170,11 +182,11 @@ function RegisterForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
       <div className="max-w-md w-full">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-lg">
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -190,24 +202,24 @@ function RegisterForm() {
           {/* Auth Method Toggle */}
           <div className="flex gap-2 mb-6 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <button
-              onClick={() => setAuthMethod("magic")}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                authMethod === "magic"
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              }`}
-            >
-              Magic Link
-            </button>
-            <button
               onClick={() => setAuthMethod("password")}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                 authMethod === "password"
                   ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
               Password
+            </button>
+            <button
+              onClick={() => setAuthMethod("magic")}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                authMethod === "magic"
+                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              Magic Link
             </button>
           </div>
 
@@ -245,7 +257,7 @@ function RegisterForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
+                className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
               >
                 {loading ? (
                   "Sending..."
@@ -354,7 +366,7 @@ function RegisterForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
+                className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
               >
                 {loading ? "Creating account..." : "Create account"}
               </button>
@@ -377,7 +389,7 @@ function RegisterForm() {
           <button
             onClick={handleGoogleSignup}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path

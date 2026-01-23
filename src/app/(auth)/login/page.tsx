@@ -4,12 +4,14 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { toUserFriendlyAuthError } from "@/lib/auth/client-errors";
 import { Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
 
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get("invite");
+  const message = searchParams.get("message");
   const redirect = inviteToken 
     ? `/invitations?token=${inviteToken}` 
     : searchParams.get("redirect") || "/dashboard";
@@ -19,7 +21,7 @@ function LoginFormContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const [authMethod, setAuthMethod] = useState<"magic" | "password">("magic");
+  const [authMethod, setAuthMethod] = useState<"magic" | "password">("password");
 
   const supabase = createClient();
 
@@ -38,7 +40,7 @@ function LoginFormContent() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setError(toUserFriendlyAuthError(error.message));
     } else {
       setMagicLinkSent(true);
     }
@@ -49,47 +51,58 @@ function LoginFormContent() {
     setLoading(true);
     setError(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    setLoading(false);
+      if (error) {
+        // Match existing UX messaging
+        if (
+          error.message.includes("Email not confirmed") ||
+          error.message.includes("not verified")
+        ) {
+          setError(
+            "Please verify your email address. Check your inbox for the confirmation link."
+          );
+        } else {
+          setError(error.message);
+        }
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      // Handle email not verified error
-      if (error.message.includes("Email not confirmed") || error.message.includes("not verified")) {
+      if (data.user && !data.user.email_confirmed_at) {
         setError(
           "Please verify your email address. Check your inbox for the confirmation link."
         );
-      } else {
-        setError(error.message);
+        setLoading(false);
+        return;
       }
-    } else if (data.user && !data.user.email_confirmed_at) {
-      // User exists but email not verified
-      setError(
-        "Please verify your email address. Check your inbox for the confirmation link."
-      );
-    } else if (data.user) {
-      // Check onboarding status before redirecting
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .eq("id", data.user.id)
-        .single();
 
-      const onboardingCompleted = profile?.onboarding_completed ?? false;
+      // Determine onboarding status via backend (avoids client DB reads)
+      const prefsRes = await fetch("/api/profile/preferences");
+      const prefsData = await prefsRes.json().catch(() => ({}));
+      const onboardingCompleted = prefsRes.ok
+        ? (prefsData.onboarding_completed ?? false)
+        : false;
+
+      setLoading(false);
 
       if (!onboardingCompleted) {
-        // Preserve invite token in onboarding
-        const onboardingPath = inviteToken 
-          ? `/onboarding?invite=${inviteToken}` 
+        const onboardingPath = inviteToken
+          ? `/onboarding?invite=${inviteToken}`
           : "/onboarding";
         router.push(onboardingPath);
       } else {
         router.push(redirect);
       }
       router.refresh();
+    } catch (err) {
+      console.error("Error logging in:", err);
+      setLoading(false);
+      setError(err instanceof Error ? err.message : "Failed to sign in");
     }
   };
 
@@ -107,13 +120,13 @@ function LoginFormContent() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setError(toUserFriendlyAuthError(error.message));
     }
   };
 
   if (magicLinkSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4">
         <div className="max-w-md w-full">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -123,7 +136,7 @@ function LoginFormContent() {
               Check your email
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              We've sent a magic link to <strong>{email}</strong>. Click the
+              We&apos;ve sent a magic link to <strong>{email}</strong>. Click the
               link to sign in.
             </p>
             <button
@@ -142,11 +155,11 @@ function LoginFormContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
       <div className="max-w-md w-full">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-lg">
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -159,27 +172,34 @@ function LoginFormContent() {
 
         {/* Auth Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+          {/* Info Message */}
+          {message && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-700 dark:text-blue-300">{message}</p>
+            </div>
+          )}
+
           {/* Auth Method Toggle */}
           <div className="flex gap-2 mb-6 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <button
-              onClick={() => setAuthMethod("magic")}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                authMethod === "magic"
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              }`}
-            >
-              Magic Link
-            </button>
-            <button
               onClick={() => setAuthMethod("password")}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                 authMethod === "password"
                   ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
               Password
+            </button>
+            <button
+              onClick={() => setAuthMethod("magic")}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                authMethod === "magic"
+                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              Magic Link
             </button>
           </div>
 
@@ -217,7 +237,7 @@ function LoginFormContent() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
+                className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
               >
                 {loading ? (
                   "Sending..."
@@ -274,12 +294,20 @@ function LoginFormContent() {
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+                <div className="mt-2 flex justify-end">
+                  <Link
+                    href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
+                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
+                className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
               >
                 {loading ? "Signing in..." : "Sign in"}
               </button>
@@ -302,7 +330,7 @@ function LoginFormContent() {
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -327,7 +355,7 @@ function LoginFormContent() {
 
           {/* Sign up link */}
           <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/register"
               className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
@@ -344,7 +372,7 @@ function LoginFormContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>

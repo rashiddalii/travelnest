@@ -1,27 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { requireAuth, jsonError } from "@/lib/auth/api";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 401 }
-      );
-    }
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
     return NextResponse.json({
       user: {
@@ -31,10 +14,8 @@ export async function GET() {
       },
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    console.error("Unexpected error in /api/auth/me:", error);
+    return jsonError("Internal server error", 500);
   }
 }
 

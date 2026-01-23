@@ -45,11 +45,17 @@ export async function proxy(request: NextRequest) {
 
   // If user is authenticated, check onboarding status
   if (user) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("onboarding_completed")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
+
+    // If profile can't be read (transient issue), don't trap user in onboarding redirect loop.
+    if (profileError) {
+      console.warn("Could not read onboarding status in middleware:", profileError);
+      return response;
+    }
 
     const onboardingCompleted = profile?.onboarding_completed ?? false;
 

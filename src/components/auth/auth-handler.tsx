@@ -34,7 +34,25 @@ export function AuthHandler() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Handle sign out - set loading briefly for smooth transition
+      if (event === "SIGNED_OUT") {
+        setLoading(true);
+        setUser(null);
+        
+        // Redirect to login if on protected page
+        if (pathname?.startsWith("/dashboard") || pathname?.startsWith("/trips") || pathname?.startsWith("/onboarding")) {
+          router.push("/login");
+          router.refresh();
+        }
+        
+        // Small delay to ensure redirect starts before setting loading to false
+        setTimeout(() => {
+          setLoading(false);
+        }, 100);
+        return;
+      }
+
       setUser(session?.user ?? null);
       setLoading(false);
       setInitialized(true);
@@ -56,11 +74,6 @@ export function AuthHandler() {
             router.push("/dashboard");
           }
           router.refresh();
-        }
-      } else {
-        // If user logged out and is on protected page, redirect to login
-        if (pathname?.startsWith("/dashboard") || pathname?.startsWith("/trips")) {
-          router.push("/login");
         }
       }
     });

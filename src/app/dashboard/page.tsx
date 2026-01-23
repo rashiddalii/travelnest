@@ -131,7 +131,7 @@ export default function DashboardPage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "global" });
     router.push("/login");
     router.refresh();
   };
@@ -184,32 +184,31 @@ export default function DashboardPage() {
     }
   };
 
-  // Only show full-page loading screen on initial load when we don't have user data yet
-  if ((loading || !initialized) && !user) {
+  // Show loading screen when auth is loading or when user is not authenticated
+  // This handles both initial load and logout transition
+  if (loading || !initialized || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">
+            {!user && initialized ? "Redirecting..." : "Loading..."}
+          </p>
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   const upcomingTrips = trips.filter((trip) => getTripStatus(trip) === "upcoming");
   const pastTrips = trips.filter((trip) => getTripStatus(trip) === "past" || getTripStatus(trip) === null);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -237,7 +236,7 @@ export default function DashboardPage() {
         <div className="mb-8 flex justify-end">
           <button
             onClick={() => router.push("/trips/new")}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
           >
             <Sparkles className="w-5 h-5" />
             Create New Trip
@@ -274,7 +273,7 @@ export default function DashboardPage() {
               </p>
               <button
                 onClick={() => router.push("/trips/new")}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
               >
                 <Sparkles className="w-5 h-5" />
                 Create New Trip
@@ -297,7 +296,7 @@ export default function DashboardPage() {
                       className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group relative"
                     >
                       {/* Cover Photo */}
-                      <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-500">
+                        <div className="relative h-48 bg-linear-to-br from-blue-500 to-purple-500">
                         <Link href={`/trips/${trip.id}`} className="block w-full h-full">
                           {trip.cover_photo_url ? (
                             <img
@@ -383,7 +382,7 @@ export default function DashboardPage() {
                             {trip.members.slice(0, 4).map((member, idx) => (
                               <div
                                 key={member.id}
-                                className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-medium"
+                                className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-linear-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-medium"
                                 title={member.full_name || "Member"}
                               >
                                 {member.avatar_url ? (
@@ -426,7 +425,7 @@ export default function DashboardPage() {
                       className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group opacity-75 relative"
                     >
                       {/* Cover Photo */}
-                      <div className="relative h-48 bg-gradient-to-br from-gray-400 to-gray-600">
+                      <div className="relative h-48 bg-linear-to-br from-gray-400 to-gray-600">
                         <Link href={`/trips/${trip.id}`} className="block w-full h-full">
                           {trip.cover_photo_url ? (
                             <img
@@ -508,7 +507,7 @@ export default function DashboardPage() {
                             {trip.members.slice(0, 4).map((member) => (
                               <div
                                 key={member.id}
-                                className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-medium"
+                                className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-linear-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-medium"
                                 title={member.full_name || "Member"}
                               >
                                 {member.avatar_url ? (

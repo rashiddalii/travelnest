@@ -195,14 +195,40 @@ USING (
 
 ## 8. Enable Google OAuth (Optional)
 
-1. Go to **Authentication** → **Providers**
+If you see this error when clicking “Continue with Google”:
+
+```json
+{"code":400,"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}
+```
+
+it means **Google OAuth is not enabled for the Supabase project your app is currently using**.
+
+### Hosted Supabase (recommended)
+
+1. Go to **Supabase Dashboard** → **Authentication** → **Providers**
 2. Find **Google** and click **Enable**
-3. You'll need:
+3. Add:
    - **Client ID** (from Google Cloud Console)
    - **Client Secret** (from Google Cloud Console)
-4. Set **Redirect URL** in Google Console:
+4. In **Google Cloud Console**, set the authorized redirect URI to:
    - `https://your-project-id.supabase.co/auth/v1/callback`
-5. Save and test
+5. In Supabase **Authentication** → **URL Configuration**, make sure these are allow-listed:
+   - `http://localhost:3000/auth/callback` (local dev)
+   - `https://your-domain.com/auth/callback` (production)
+6. Save and test again.
+
+### Local Supabase (Supabase CLI)
+
+Local auth providers are configured in `travelnest-web/supabase/config.toml`.
+
+- Google is enabled via:
+  - `[auth.external.google] enabled = true`
+  - `client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"`
+  - `secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"`
+- Add these env vars to your local Supabase environment (do **not** commit secrets):
+  - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
+  - `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`
+- Restart local Supabase after changes.
 
 ## Troubleshooting
 
@@ -213,6 +239,12 @@ USING (
 ### "Invalid supabaseUrl" error
 
 **Solution**: Make sure your `.env.local` has the correct values (step 2)
+
+### Google OAuth: “Unsupported provider: provider is not enabled”
+
+**Solution**:
+- Confirm **Google** is enabled in the Supabase project you’re using (Dashboard → Authentication → Providers).
+- Double-check your app is pointing at the same project (`NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 
 ### Tables not showing up
 
