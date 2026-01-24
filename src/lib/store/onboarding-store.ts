@@ -8,6 +8,7 @@ interface OnboardingStore extends OnboardingState {
     key: K,
     value: OnboardingPreferences[K]
   ) => void;
+  toggleTravelStyle: (style: OnboardingPreferences["travelStyles"][number]) => void;
   reset: () => void;
   isComplete: () => boolean;
 }
@@ -29,15 +30,30 @@ export const useOnboardingStore = create<OnboardingStore>()(
             [key]: value,
           },
         })),
+      toggleTravelStyle: (style) =>
+        set((state) => {
+          const currentStyles = state.preferences.travelStyles || [];
+          const newStyles = currentStyles.includes(style)
+            ? currentStyles.filter((s) => s !== style)
+            : [...currentStyles, style];
+          return {
+            preferences: {
+              ...state.preferences,
+              travelStyles: newStyles,
+            },
+          };
+        }),
       reset: () => set(initialState),
       isComplete: () => {
         const prefs = get().preferences;
         return (
-          !!prefs.travelGroup &&
-          !!prefs.vibe &&
-          !!prefs.budgetLevel &&
-          !!prefs.interests &&
-          prefs.interests.length > 0
+          // Step 1: Travel styles (required, at least one)
+          !!prefs.travelStyles &&
+          prefs.travelStyles.length > 0 &&
+          // Step 2: Typical group (optional but we require it for better UX)
+          !!prefs.typicalGroup &&
+          // Step 3: Planning mode (required)
+          !!prefs.planningMode
         );
       },
     }),

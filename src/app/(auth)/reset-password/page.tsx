@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, Sparkles } from "lucide-react";
+import { Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage() {
@@ -81,12 +81,11 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-lg">
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Set a new password
-          </h1>
+          <img
+            src="/logo-icon.png"
+            alt="TravelNest"
+            className="h-20 w-auto mx-auto mb-2"
+          />
           <p className="text-gray-600 dark:text-gray-400">
             Choose a strong password to secure your account.
           </p>
@@ -147,7 +146,7 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25"
+              className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed shadow-lg shadow-blue-500/25"
             >
               {loading ? "Updating..." : "Update password"}
             </button>
@@ -167,4 +166,3 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
-

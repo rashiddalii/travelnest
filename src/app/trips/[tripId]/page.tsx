@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { useToast } from "@/lib/store/toast-store";
+import { useConfirm } from "@/hooks/use-confirm";
 import {
   DndContext,
   closestCenter,
@@ -41,6 +43,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { InviteMembersModal } from "@/components/trips/invite-members-modal";
+import { Navbar } from "@/components/layout/navbar";
 
 interface Trip {
   id: string;
@@ -161,6 +164,8 @@ function SortableSection({
 export default function TripPage({ params }: TripPageProps) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthStore();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const supabase = createClient();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
@@ -309,7 +314,16 @@ export default function TripPage({ params }: TripPageProps) {
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!tripId || !confirm("Are you sure you want to remove this member?")) {
+    if (!tripId) return;
+    
+    const confirmed = await confirm({
+      title: "Remove Member",
+      message: "Are you sure you want to remove this member from the trip?",
+      confirmLabel: "Remove",
+      variant: "danger",
+    });
+    
+    if (!confirmed) {
       return;
     }
 
@@ -327,9 +341,10 @@ export default function TripPage({ params }: TripPageProps) {
 
       // Refresh members list
       await fetchMembers();
+      toast.success("Member removed successfully!");
     } catch (err) {
       console.error("Error removing member:", err);
-      alert(err instanceof Error ? err.message : "Failed to remove member");
+      toast.error(err instanceof Error ? err.message : "Failed to remove member");
     } finally {
       setRemovingMemberId(null);
     }
@@ -380,7 +395,7 @@ export default function TripPage({ params }: TripPageProps) {
       console.error("Error reordering sections:", err);
       // Revert on error
       setSections(sections);
-      alert(err instanceof Error ? err.message : "Failed to reorder sections");
+      toast.error(err instanceof Error ? err.message : "Failed to reorder sections");
     } finally {
       setIsReordering(false);
     }
@@ -415,6 +430,7 @@ export default function TripPage({ params }: TripPageProps) {
   if (error) {
     return (
       <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
         <div className="max-w-7xl mx-auto px-4 py-8">
           <Link
             href="/dashboard"
@@ -453,12 +469,13 @@ export default function TripPage({ params }: TripPageProps) {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
+        {/* Back Link */}
+        <div className="mb-6">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
+            className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
@@ -522,7 +539,7 @@ export default function TripPage({ params }: TripPageProps) {
               {canEdit && (
                 <button
                   onClick={() => setIsInviteModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
                 >
                   <UserPlus className="w-4 h-4" />
                   Invite
@@ -536,7 +553,7 @@ export default function TripPage({ params }: TripPageProps) {
                 {canEdit && (
                   <button
                     onClick={() => setIsInviteModalOpen(true)}
-                    className="mt-3 text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                    className="mt-3 text-blue-600 dark:text-blue-400 hover:underline text-sm cursor-pointer"
                   >
                     Invite your first member
                   </button>
@@ -587,7 +604,7 @@ export default function TripPage({ params }: TripPageProps) {
                       <button
                         onClick={() => handleRemoveMember(member.user_id)}
                         disabled={removingMemberId === member.user_id}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-all disabled:opacity-50"
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                         title="Remove member"
                       >
                         <X className="w-4 h-4" />

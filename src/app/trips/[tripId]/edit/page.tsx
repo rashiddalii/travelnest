@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/auth-store";
-import { Sparkles, Calendar, Lock, Image as ImageIcon, ArrowLeft, Save } from "lucide-react";
+import { Plane, Calendar, Lock, Image as ImageIcon, ArrowLeft, Save } from "lucide-react";
+import { Navbar } from "@/components/layout/navbar";
 
 interface TripPageProps {
   params: Promise<{
@@ -196,7 +197,9 @@ export default function EditTripPage({ params }: TripPageProps) {
     }));
   };
 
-  if (authLoading || loading) {
+  // Only show loading on initial load (before we have trip data)
+  // Don't show loading when returning to app if we already have data
+  if ((authLoading || loading) && !formData.title) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -209,7 +212,8 @@ export default function EditTripPage({ params }: TripPageProps) {
 
   if (error && !formData.title) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
         <div className="max-w-2xl mx-auto px-4 py-8">
           <Link
             href={`/trips/${tripId}`}
@@ -231,7 +235,7 @@ export default function EditTripPage({ params }: TripPageProps) {
               </p>
               <Link
                 href={`/trips/${tripId}`}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
               >
                 Go to Trip
               </Link>
@@ -243,9 +247,10 @@ export default function EditTripPage({ params }: TripPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Back Link */}
         <div className="mb-8">
           <Link
             href={`/trips/${tripId}`}
@@ -255,8 +260,8 @@ export default function EditTripPage({ params }: TripPageProps) {
             Back to Trip
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+              <Plane className="w-6 h-6 text-white" />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -396,7 +401,7 @@ export default function EditTripPage({ params }: TripPageProps) {
                       setPreviewUrl(null);
                     }
                   }}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                     coverPhotoMethod === "upload"
                       ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -410,7 +415,7 @@ export default function EditTripPage({ params }: TripPageProps) {
                     setCoverPhotoMethod("url");
                     setSelectedFile(null);
                   }}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                     coverPhotoMethod === "url"
                       ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -487,7 +492,7 @@ export default function EditTripPage({ params }: TripPageProps) {
               <button
                 type="submit"
                 disabled={saving || uploading || !formData.title.trim()}
-                className="px-6 py-3 rounded-lg font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center gap-2"
+                className="px-6 py-3 rounded-lg font-medium text-white bg-linear-to-r from-blue-600 to-purple-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center gap-2"
               >
                 {uploading ? (
                   "Uploading..."

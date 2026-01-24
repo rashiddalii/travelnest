@@ -63,7 +63,7 @@ export function NotificationIcon({ className }: NotificationIconProps) {
   return (
     <button
       onClick={handleClick}
-      className={`relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${className}`}
+      className={`relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer ${className}`}
       title="Notifications"
     >
       <Bell className="w-6 h-6 text-gray-700 dark:text-gray-300" />

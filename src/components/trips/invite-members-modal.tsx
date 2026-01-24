@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, UserPlus, Mail, User, Eye } from "lucide-react";
+import { useToast } from "@/lib/store/toast-store";
 
 interface InviteMembersModalProps {
   isOpen: boolean;
@@ -16,18 +17,17 @@ export function InviteMembersModal({
   tripId,
   onMemberInvited,
 }: InviteMembersModalProps) {
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"editor" | "viewer">("editor");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleClose = () => {
     setEmail("");
     setRole("editor");
     setError(null);
-    setSuccess(false);
     onClose();
   };
 
@@ -40,7 +40,6 @@ export function InviteMembersModal({
     }
 
     setError(null);
-    setSuccess(false);
 
     if (!email.trim()) {
       setError("Email is required");
@@ -75,16 +74,14 @@ export function InviteMembersModal({
         throw new Error(data.error || "Failed to invite member");
       }
 
-      setSuccess(true);
       setEmail("");
       
       // Call callback to refresh members list
       onMemberInvited();
-
-      // Auto-close after 1.5 seconds
-      setTimeout(() => {
-        handleClose();
-      }, 1500);
+      
+      // Show toast and close
+      toast.success("Member invited successfully!");
+      handleClose();
     } catch (err) {
       console.error("Error inviting member:", err);
       setError(err instanceof Error ? err.message : "Failed to invite member");
@@ -111,7 +108,7 @@ export function InviteMembersModal({
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
           >
             <X className="w-6 h-6" />
           </button>
@@ -132,7 +129,7 @@ export function InviteMembersModal({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="friend@example.com"
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={loading || success}
+                disabled={loading}
                 required
               />
             </div>
@@ -150,12 +147,12 @@ export function InviteMembersModal({
               <button
                 type="button"
                 onClick={() => setRole("editor")}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                className={`p-4 rounded-lg border-2 transition-all text-left cursor-pointer disabled:cursor-not-allowed ${
                   role === "editor"
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                     : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
-                disabled={loading || success}
+                disabled={loading}
               >
                 <User
                   className={`w-6 h-6 mb-2 ${
@@ -174,12 +171,12 @@ export function InviteMembersModal({
               <button
                 type="button"
                 onClick={() => setRole("viewer")}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                className={`p-4 rounded-lg border-2 transition-all text-left cursor-pointer disabled:cursor-not-allowed ${
                   role === "viewer"
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                     : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
-                disabled={loading || success}
+                disabled={loading}
               >
                 <Eye
                   className={`w-6 h-6 mb-2 ${
@@ -205,31 +202,22 @@ export function InviteMembersModal({
             </div>
           )}
 
-          {/* Success Message */}
-          {success && (
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <p className="text-sm text-green-600 dark:text-green-400">
-                Member invited successfully!
-              </p>
-            </div>
-          )}
-
           {/* Actions */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium cursor-pointer disabled:cursor-not-allowed"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading || success || !email.trim() || isSubmitting}
-              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+              disabled={loading || !email.trim() || isSubmitting}
+              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 cursor-pointer disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
             >
-              {loading || isSubmitting ? "Inviting..." : success ? "Invited!" : "Send Invite"}
+              {loading || isSubmitting ? "Inviting..." : "Send Invite"}
             </button>
           </div>
         </form>

@@ -3,6 +3,30 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* TravelNest Brand Colors - Logo (matches button gradient) */
+  --brand-travel: #2563eb; /* blue-600 - "Travel" word in logo */
+  --brand-travel-dark: #3b82f6; /* blue-500 - for dark mode */
+  --brand-nest: #9333ea; /* purple-600 - "Nest" word in logo */
+  --brand-nest-dark: #a855f7; /* purple-500 - for dark mode */
+  
+  /* TravelNest Theme Colors - Primary (Blue-Purple Gradient) */
+  --theme-primary-from: #2563eb; /* blue-600 */
+  --theme-primary-via: #7c3aed; /* violet-600 */
+  --theme-primary-to: #9333ea; /* purple-600 */
+  
+  /* Theme colors for hover states */
+  --theme-primary-from-hover: #1d4ed8; /* blue-700 */
+  --theme-primary-via-hover: #6d28d9; /* violet-700 */
+  --theme-primary-to-hover: #7e22ce; /* purple-700 */
+  
+  /* Theme accent color (for text, borders, etc.) */
+  --theme-accent: #7c3aed; /* violet-600 */
+  --theme-accent-hover: #6d28d9; /* violet-700 */
+  --theme-accent-light: #8b5cf6; /* violet-500 */
+  
+  /* Shadow color for buttons */
+  --theme-shadow: rgba(124, 58, 237, 0.25); /* violet with opacity */
 }
 
 @theme inline {
@@ -10,12 +34,40 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Custom theme colors for Tailwind */
+  --color-theme-primary-from: var(--theme-primary-from);
+  --color-theme-primary-via: var(--theme-primary-via);
+  --color-theme-primary-to: var(--theme-primary-to);
+  --color-theme-accent: var(--theme-accent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    
+    /* Slightly lighter theme colors for dark mode */
+    --theme-accent: #8b5cf6; /* violet-500 */
+    --theme-accent-hover: #7c3aed; /* violet-600 */
+    --theme-accent-light: #a78bfa; /* violet-400 */
+  }
+}
+
+/* Brand logo gradient text */
+.text-brand-gradient {
+  background: linear-gradient(to right, var(--brand-travel), var(--brand-nest));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  .text-brand-gradient {
+    background: linear-gradient(to right, var(--brand-travel-dark), var(--brand-nest-dark));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }
 
@@ -23,4 +75,21 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Theme gradient utility classes */
+.bg-theme-gradient {
+  background: linear-gradient(to right, var(--theme-primary-from), var(--theme-primary-via), var(--theme-primary-to));
+}
+
+.bg-theme-gradient-hover:hover {
+  background: linear-gradient(to right, var(--theme-primary-from-hover), var(--theme-primary-via-hover), var(--theme-primary-to-hover));
+}
+
+.text-theme-accent {
+  color: var(--theme-accent);
+}
+
+.shadow-theme {
+  box-shadow: 0 10px 15px -3px var(--theme-shadow), 0 4px 6px -4px var(--theme-shadow);
 }

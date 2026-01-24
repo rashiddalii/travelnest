@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/lib/store/toast-store";
+import { useConfirm } from "@/hooks/use-confirm";
 import {
   Bell,
   Calendar,
@@ -12,12 +14,13 @@ import {
   Check,
   X,
   ArrowLeft,
-  Sparkles,
+  Plane,
   Image as ImageIcon,
   Clock,
   AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
+import { Navbar } from "@/components/layout/navbar";
 
 interface Invitation {
   id: string;
@@ -47,6 +50,8 @@ function InvitationsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading, initialized } = useAuthStore();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const supabase = createClient();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -248,11 +253,12 @@ function InvitationsPageContent() {
         ).filter((inv) => inv.status === "pending") // Remove accepted from list
       );
 
+      toast.success("Invitation accepted! Redirecting to trip...");
       // Navigate to the trip
       router.push(`/trips/${invitation.trip_id}`);
     } catch (err) {
       console.error("Error accepting invitation:", err);
-      alert(
+      toast.error(
         err instanceof Error ? err.message : "Failed to accept invitation"
       );
     } finally {
@@ -263,11 +269,14 @@ function InvitationsPageContent() {
   const handleReject = async (invitation: Invitation) => {
     if (!invitation.trip_id) return;
 
-    if (
-      !confirm(
-        "Are you sure you want to reject this invitation? This action cannot be undone."
-      )
-    ) {
+    const confirmed = await confirm({
+      title: "Reject Invitation",
+      message: "Are you sure you want to reject this invitation? This action cannot be undone.",
+      confirmLabel: "Reject",
+      variant: "warning",
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -290,9 +299,10 @@ function InvitationsPageContent() {
       setInvitations((prev) =>
         prev.filter((inv) => inv.id !== invitation.id)
       );
+      toast.success("Invitation rejected");
     } catch (err) {
       console.error("Error rejecting invitation:", err);
-      alert(
+      toast.error(
         err instanceof Error ? err.message : "Failed to reject invitation"
       );
     } finally {
@@ -332,8 +342,9 @@ function InvitationsPageContent() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Navbar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+        {/* Page Header */}
         <div className="mb-8">
           <Link
             href="/dashboard"
@@ -391,7 +402,7 @@ function InvitationsPageContent() {
                 href="/dashboard"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
               >
-                <Sparkles className="w-5 h-5" />
+                <Plane className="w-5 h-5" />
                 Go to Dashboard
               </Link>
             </div>
@@ -467,7 +478,7 @@ function InvitationsPageContent() {
                       <button
                         onClick={() => handleAccept(invitation)}
                         disabled={processingId === invitation.id}
-                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                       >
                         <Check className="w-5 h-5" />
                         {processingId === invitation.id ? "Accepting..." : "Accept"}
@@ -475,7 +486,7 @@ function InvitationsPageContent() {
                       <button
                         onClick={() => handleReject(invitation)}
                         disabled={processingId === invitation.id}
-                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                       >
                         <X className="w-5 h-5" />
                         Reject

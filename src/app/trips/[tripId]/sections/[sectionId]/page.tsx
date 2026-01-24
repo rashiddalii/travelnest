@@ -4,6 +4,7 @@ import { useEffect, useState, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { useToast } from "@/lib/store/toast-store";
 import { AddCardModal } from "@/components/trips/add-card-modal";
 import {
   ArrowLeft,
@@ -19,6 +20,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+import { Navbar } from "@/components/layout/navbar";
 
 interface Section {
   id: string;
@@ -72,6 +74,7 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
 export default function SectionPage({ params }: SectionPageProps) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthStore();
+  const toast = useToast();
   const [section, setSection] = useState<Section | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -178,11 +181,12 @@ export default function SectionPage({ params }: SectionPageProps) {
 
       // Refresh to ensure consistency (silently in background)
       await refreshCards();
+      toast.success("Card deleted successfully!");
     } catch (err) {
       console.error("Error deleting card:", err);
       // Revert optimistic update on error
       setCards(originalCards);
-      alert(err instanceof Error ? err.message : "Failed to delete card");
+      toast.error(err instanceof Error ? err.message : "Failed to delete card");
     }
   };
 
@@ -200,7 +204,8 @@ export default function SectionPage({ params }: SectionPageProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
         <div className="max-w-7xl mx-auto px-4 py-8">
           <Link
             href={trip ? `/trips/${tripId}` : "/dashboard"}
@@ -222,7 +227,7 @@ export default function SectionPage({ params }: SectionPageProps) {
               </p>
               <Link
                 href={trip ? `/trips/${tripId}` : "/dashboard"}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
               >
                 Go Back
               </Link>
@@ -238,13 +243,14 @@ export default function SectionPage({ params }: SectionPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with Back Navigation */}
-        <div className="mb-8">
+        {/* Back Navigation */}
+        <div className="mb-6">
           <Link
             href={`/trips/${tripId}`}
-            className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
+            className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to {trip?.title || "Trip"}
@@ -254,7 +260,7 @@ export default function SectionPage({ params }: SectionPageProps) {
         {/* Section Header */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-8">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white">
+            <div className="w-12 h-12 bg-linear-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white">
               {SECTION_ICONS[section.type] || <FileText className="w-6 h-6" />}
             </div>
             <div>
@@ -285,7 +291,7 @@ export default function SectionPage({ params }: SectionPageProps) {
               </p>
               <button
                 onClick={() => setIsAddCardModalOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
               >
                 <Plus className="w-5 h-5" />
                 Add Card
@@ -299,7 +305,7 @@ export default function SectionPage({ params }: SectionPageProps) {
                 </h2>
                 <button
                   onClick={() => setIsAddCardModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
                 >
                   <Plus className="w-5 h-5" />
                   Add Card
@@ -316,14 +322,14 @@ export default function SectionPage({ params }: SectionPageProps) {
                       <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => setEditingCard(card)}
-                          className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                          className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors cursor-pointer"
                           title="Edit card"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setDeletingCardId(card.id)}
-                          className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                          className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
                           title="Delete card"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -377,7 +383,7 @@ export default function SectionPage({ params }: SectionPageProps) {
                     {card.type === "map" && (
                       <div className="mt-4">
                         <div className="flex items-start gap-2">
-                          <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                          <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
                           <div>
                             {card.metadata?.placeName && (
                               <p className="font-medium text-gray-900 dark:text-white">
@@ -412,7 +418,7 @@ export default function SectionPage({ params }: SectionPageProps) {
                       <div className="mt-4">
                         {card.metadata.isAudio ? (
                           // Audio player
-                          <div className="p-4 bg-gradient-to-r from-purple-500 to-indigo-500 dark:from-purple-600 dark:to-indigo-600 text-white rounded-lg">
+                          <div className="p-4 bg-linear-to-r from-purple-500 to-indigo-500 dark:from-purple-600 dark:to-indigo-600 text-white rounded-lg">
                             <div className="flex items-center gap-3 mb-3">
                               <Music className="w-6 h-6" />
                               <div className="flex-1 min-w-0">
@@ -443,7 +449,7 @@ export default function SectionPage({ params }: SectionPageProps) {
                             href={card.metadata.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="block p-4 bg-gradient-to-r from-red-500 to-pink-500 dark:from-red-600 dark:to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-600 dark:hover:from-red-700 dark:hover:to-pink-700 transition-all"
+                            className="block p-4 bg-linear-to-r from-red-500 to-pink-500 dark:from-red-600 dark:to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-600 dark:hover:from-red-700 dark:hover:to-pink-700 transition-all"
                           >
                             <div className="flex items-center gap-3">
                               <Music className="w-6 h-6" />
@@ -523,13 +529,13 @@ export default function SectionPage({ params }: SectionPageProps) {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setDeletingCardId(null)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteCard(deletingCardId)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors cursor-pointer"
               >
                 Delete
               </button>

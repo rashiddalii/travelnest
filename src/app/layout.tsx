@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthHandler } from "@/components/auth/auth-handler";
+import { ToastContainer } from "@/components/ui/toast";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +32,8 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthHandler />
+        <ToastContainer />
+        <ConfirmationModal />
         {children}
       </body>
     </html>

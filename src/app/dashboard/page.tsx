@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/auth-store";
-import { LogOut, Sparkles, Calendar, Lock, Users, Image as ImageIcon, Edit, Trash2, MoreVertical } from "lucide-react";
+import { useToast } from "@/lib/store/toast-store";
+import { useConfirm } from "@/hooks/use-confirm";
+import { Sparkles, Calendar, Lock, Users, Image as ImageIcon, Edit, Trash2, MoreVertical, Globe, Plus } from "lucide-react";
 import { format, isFuture, isPast } from "date-fns";
-import { NotificationIcon } from "@/components/notifications/notification-icon";
+import { Navbar } from "@/components/layout/navbar";
 
 interface Trip {
   id: string;
@@ -32,6 +34,8 @@ interface Trip {
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, initialized } = useAuthStore();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const supabase = createClient();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripsLoading, setTripsLoading] = useState(true);
@@ -41,20 +45,20 @@ export default function DashboardPage() {
   const hasLoadedRef = useRef(false);
 
   useEffect(() => {
-    // Only redirect if auth is done loading and no user
+    // Only redirect if auth is fully initialized and no user
     if (initialized && !loading && !user) {
       router.push("/login");
     }
   }, [user, loading, initialized, router]);
 
   useEffect(() => {
-    // Only fetch once when we have user and haven't loaded yet
-    if (user && !hasLoadedRef.current && initialized && !loading) {
+    // Fetch trips when we have a user (only once per session)
+    if (user && !hasLoadedRef.current) {
       hasLoadedRef.current = true;
       fetchTrips();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, initialized, loading]);
+  }, [user]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -98,7 +102,14 @@ export default function DashboardPage() {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!confirm("Are you sure you want to delete this trip? This action cannot be undone.")) {
+    const confirmed = await confirm({
+      title: "Delete Trip",
+      message: "Are you sure you want to delete this trip? This action cannot be undone.",
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    
+    if (!confirmed) {
       return;
     }
 
@@ -115,9 +126,10 @@ export default function DashboardPage() {
 
       // Refresh trips list (force refresh)
       await fetchTrips(true);
+      toast.success("Trip deleted successfully!");
     } catch (err) {
       console.error("Error deleting trip:", err);
-      alert(err instanceof Error ? err.message : "Failed to delete trip");
+      toast.error(err instanceof Error ? err.message : "Failed to delete trip");
     } finally {
       setDeletingTripId(null);
       setShowMenuTripId(null);
@@ -130,12 +142,6 @@ export default function DashboardPage() {
     router.push(`/trips/${tripId}/edit`);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut({ scope: "global" });
-    router.push("/login");
-    router.refresh();
-  };
-
   const getPrivacyIcon = (privacy: string) => {
     switch (privacy) {
       case "private":
@@ -143,7 +149,7 @@ export default function DashboardPage() {
       case "friends-only":
         return <Users className="w-3 h-3" />;
       case "public":
-        return <Sparkles className="w-3 h-3" />;
+        return <Globe className="w-3 h-3" />;
       default:
         return <Lock className="w-3 h-3" />;
     }
@@ -184,19 +190,24 @@ export default function DashboardPage() {
     }
   };
 
-  // Show loading screen when auth is loading or when user is not authenticated
-  // This handles both initial load and logout transition
-  if (loading || !initialized || !user) {
+  // Only show loading on true initial load (before first data fetch)
+  // Don't show loading when returning to app - let the content remain visible
+  const isInitialLoad = !initialized || (loading && !hasLoadedRef.current);
+  
+  if (isInitialLoad) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">
-            {!user && initialized ? "Redirecting..." : "Loading..."}
-          </p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
+  }
+
+  // Redirect handled by useEffect, but don't render content without user
+  if (!user) {
+    return null;
   }
 
   const upcomingTrips = trips.filter((trip) => getTripStatus(trip) === "upcoming");
@@ -204,41 +215,24 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Navbar />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Welcome back!
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {user.email}
-              </p>
-            </div>
+        {/* Page Title + Create Trip Button */}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              My Trips
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Plan, organize, and share your adventures
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <NotificationIcon />
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Create Trip Button */}
-        <div className="mb-8 flex justify-end">
           <button
             onClick={() => router.push("/trips/new")}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
           >
-            <Sparkles className="w-5 h-5" />
+            <Plus className="w-5 h-5" />
             Create New Trip
           </button>
         </div>
@@ -273,10 +267,10 @@ export default function DashboardPage() {
               </p>
               <button
                 onClick={() => router.push("/trips/new")}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
               >
-                <Sparkles className="w-5 h-5" />
-                Create New Trip
+                <Plus className="w-5 h-5" />
+                Create Your First Trip
               </button>
             </div>
           </div>
@@ -329,7 +323,7 @@ export default function DashboardPage() {
                                   e.stopPropagation();
                                   setShowMenuTripId(showMenuTripId === trip.id ? null : trip.id);
                                 }}
-                                className="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+                                className="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors cursor-pointer"
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
@@ -337,7 +331,7 @@ export default function DashboardPage() {
                                 <div className="absolute left-0 top-10 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] z-10">
                                   <button
                                     onClick={(e) => handleEditTrip(trip.id, e)}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer"
                                   >
                                     <Edit className="w-4 h-4" />
                                     Edit
@@ -345,7 +339,7 @@ export default function DashboardPage() {
                                   <button
                                     onClick={(e) => handleDeleteTrip(trip.id, e)}
                                     disabled={deletingTripId === trip.id}
-                                    className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"
+                                    className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                     {deletingTripId === trip.id ? "Deleting..." : "Delete"}
@@ -454,7 +448,7 @@ export default function DashboardPage() {
                                   e.stopPropagation();
                                   setShowMenuTripId(showMenuTripId === trip.id ? null : trip.id);
                                 }}
-                                className="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+                                className="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors cursor-pointer"
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
@@ -462,7 +456,7 @@ export default function DashboardPage() {
                                 <div className="absolute left-0 top-10 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] z-10">
                                   <button
                                     onClick={(e) => handleEditTrip(trip.id, e)}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer"
                                   >
                                     <Edit className="w-4 h-4" />
                                     Edit
@@ -470,7 +464,7 @@ export default function DashboardPage() {
                                   <button
                                     onClick={(e) => handleDeleteTrip(trip.id, e)}
                                     disabled={deletingTripId === trip.id}
-                                    className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"
+                                    className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                     {deletingTripId === trip.id ? "Deleting..." : "Delete"}

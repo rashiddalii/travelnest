@@ -71,6 +71,7 @@ All schema lives in `travelnest-web/supabase/migrations/` and is intentionally s
 - `005_rls_helpers.sql`
 - `006_rls_read_policies.sql` (SELECT policies only)
 - `007_rls_user_inbox.sql` (inbox SELECT/UPDATE only)
+- `008_storage_buckets.sql` (storage buckets + RLS policies for avatars and trip-covers)
 
 ## 5. Verify Tables Were Created
 
@@ -97,99 +98,37 @@ All schema lives in `travelnest-web/supabase/migrations/` and is intentionally s
 3. Create an account
 4. You should be able to log in immediately (if email verification is disabled)
 
-## 7. Set Up Storage Bucket for Trip Covers
+## 7. Storage Buckets (Automated via Migrations)
 
-### Step 1: Create the Bucket
+Storage buckets are now created automatically via `008_storage_buckets.sql` migration.
 
-1. Go to your Supabase Dashboard
-2. In the left sidebar, click on **"Storage"** (or navigate to `https://supabase.com/dashboard/project/YOUR_PROJECT_ID/storage/buckets`)
-3. Click the **"New bucket"** button (usually at the top right)
-4. Fill in the bucket configuration:
-   - **Name**: `trip-covers` (must be exactly this name)
-   - **Public bucket**: ✅ **Toggle ON** (this allows images to be accessed via public URLs)
-   - **File size limit**: `5242880` (5 MB in bytes) or leave default
-   - **Allowed MIME types**: Leave empty or enter `image/jpeg,image/png,image/webp,image/gif`
-5. Click **"Create bucket"**
+**Buckets created:**
+- `avatars` - User profile pictures (public, 5MB limit)
+- `trip-covers` - Trip cover photos (public, 5MB limit)
 
-### Step 2: Set Up Storage Policies
-
-After creating the bucket, you need to set up policies so users can upload and view images:
-
-1. In the Storage section, click on the **"trip-covers"** bucket you just created
-2. Go to the **"Policies"** tab
-3. Click **"New Policy"** or use the SQL Editor
-
-**Option A: Using the Policy Editor (Easier)**
-1. Click **"New Policy"**
-2. Select **"For full customization"** or **"Custom policy"**
-3. Create two policies:
-
-   **Policy 1: Allow Uploads**
-   - Policy name: `Authenticated users can upload trip covers`
-   - Allowed operation: `INSERT`
-   - Target roles: `authenticated`
-   - Policy definition:
-     ```sql
-     (bucket_id = 'trip-covers')
-     ```
-
-   **Policy 2: Allow Public Read**
-   - Policy name: `Anyone can view trip covers`
-   - Allowed operation: `SELECT`
-   - Target roles: `public` (or `authenticated` if you want to restrict)
-   - Policy definition:
-     ```sql
-     (bucket_id = 'trip-covers')
-     ```
-
-**Option B: Using SQL Editor (Faster)**
-1. Go to **SQL Editor** in Supabase dashboard
-2. Click **"New query"**
-3. Paste and run this SQL:
-
-```sql
--- Allow authenticated users to upload trip covers
-CREATE POLICY "Authenticated users can upload trip covers"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'trip-covers');
-
--- Allow anyone to view trip covers (public read)
-CREATE POLICY "Anyone can view trip covers"
-ON storage.objects FOR SELECT
-TO public
-USING (bucket_id = 'trip-covers');
-
--- Optional: Allow authenticated users to delete their own uploads
-CREATE POLICY "Users can delete own trip covers"
-ON storage.objects FOR DELETE
-TO authenticated
-USING (
-  bucket_id = 'trip-covers' 
-  AND (storage.foldername(name))[1] = auth.uid()::text
-);
+**To apply storage setup:**
+```bash
+npx supabase db push
 ```
 
-4. Click **"Run"** (or press `Ctrl+Enter`)
+### Verify the Setup
 
-### Step 3: Verify the Setup
-
-1. Go back to **Storage** → **trip-covers**
-2. Try uploading a test image (optional)
-3. Check that the bucket shows as **"Public"** in the bucket list
+1. Go to **Storage** in Supabase Dashboard
+2. You should see both `avatars` and `trip-covers` buckets
+3. Both should show as **"Public"**
 
 ### Troubleshooting
 
 **"Bucket not found" error:**
-- Make sure the bucket name is exactly `trip-covers` (lowercase, with hyphen)
-- Check that the bucket was created successfully
+- Run `npx supabase db push` to apply the storage migration
+- Check that migration `008_storage_buckets.sql` exists
 
 **"Permission denied" when uploading:**
-- Verify the INSERT policy exists and targets `authenticated` role
+- Verify the RLS policies were created (check Storage → Policies tab)
 - Make sure you're logged in when testing
 
 **Images not loading:**
-- Check that the SELECT policy exists and targets `public` or `authenticated`
+- Check that the SELECT policy exists
 - Verify the bucket is set to "Public"
 - Check the image URL format: `https://YOUR_PROJECT.supabase.co/storage/v1/object/public/trip-covers/...`
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { toUserFriendlyAuthError } from "@/lib/auth/client-errors";
-import { Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
+import { Mail, Lock, ArrowRight } from "lucide-react";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -159,12 +159,11 @@ function LoginFormContent() {
       <div className="max-w-md w-full">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-lg">
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Welcome back
-          </h1>
+          <img
+            src="/logo-icon.png"
+            alt="TravelNest"
+            className="h-20 w-auto mx-auto mb-2"
+          />
           <p className="text-gray-600 dark:text-gray-400">
             Sign in to continue your journey
           </p>

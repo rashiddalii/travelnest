@@ -69,6 +69,16 @@ The database schema is managed via Supabase SQL migrations in `supabase/migratio
 
 See [SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md) for detailed instructions.
 
+## 🗂️ Storage Setup
+
+TravelNest uses Supabase Storage for file uploads (avatars, trip covers).
+
+**Required Buckets (created automatically via migrations):**
+- `avatars` - User profile pictures
+- `trip-covers` - Trip cover photos
+
+Storage buckets are created automatically when you run `npx supabase db push`. See migration `008_storage_buckets.sql`.
+
 ## ✅ Completed Features
 
 ### Phase 0 - Auth & Onboarding ✅
@@ -129,6 +139,9 @@ See [SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md) for detailed instructions.
 
 ### Database tables not showing
 **Solution**: Run the migration SQL in Supabase SQL Editor. See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md#4-set-up-database-schema)
+
+### "Bucket not found" or avatar upload fails
+**Solution**: Run `npx supabase db push` to apply the storage migration (`008_storage_buckets.sql`)
 
 ## 📝 License
 
