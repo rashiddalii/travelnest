@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Section {
   id: string;
@@ -193,10 +194,60 @@ export default function SectionPage({ params }: SectionPageProps) {
   // Only show loading screen on initial load when we don't have data yet
   if ((authLoading || loading) && !section) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Back Navigation Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-6 w-40" />
+          </div>
+
+          {/* Section Header Skeleton */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-8">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-12 w-12 rounded-lg" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-9 w-64" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          </div>
+
+          {/* Cards Section Skeleton */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <Skeleton className="h-7 w-32" />
+              <Skeleton className="h-10 w-28 rounded-lg" />
+            </div>
+            
+            {/* Cards Grid Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 space-y-4"
+                >
+                  {/* Type Badge */}
+                  <Skeleton className="h-6 w-16 rounded" />
+                  
+                  {/* Title */}
+                  <Skeleton className="h-6 w-3/4" />
+                  
+                  {/* Content */}
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                  </div>
+                  
+                  {/* Image placeholder (some cards) */}
+                  {i % 3 === 0 && (
+                    <Skeleton className="h-48 w-full rounded-lg mt-4" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -277,10 +328,14 @@ export default function SectionPage({ params }: SectionPageProps) {
         {/* Cards */}
         <div className="space-y-6">
           {cards.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                {SECTION_ICONS[section.type] || (
-                  <FileText className="w-8 h-8 text-gray-400" />
+            <div className="glass-card-strong rounded-2xl shadow-xl p-12 text-center">
+              <div className="w-20 h-20 bg-linear-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                {SECTION_ICONS[section.type] ? (
+                  <div className="text-white">
+                    {SECTION_ICONS[section.type]}
+                  </div>
+                ) : (
+                  <FileText className="w-10 h-10 text-white" />
                 )}
               </div>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -291,7 +346,7 @@ export default function SectionPage({ params }: SectionPageProps) {
               </p>
               <button
                 onClick={() => setIsAddCardModalOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
+                className="btn-modern inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
               >
                 <Plus className="w-5 h-5" />
                 Add Card
@@ -315,7 +370,7 @@ export default function SectionPage({ params }: SectionPageProps) {
                 {cards.map((card) => (
                   <div
                     key={card.id}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow relative group"
+                    className="card-hover glass-card rounded-xl shadow-lg p-6 relative group"
                   >
                     {/* Edit/Delete buttons - only show for editors/owners */}
                     {(userRole === "owner" || userRole === "editor") && (

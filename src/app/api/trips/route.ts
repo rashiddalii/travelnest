@@ -244,6 +244,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
+    const admin = createAdminClient();
     const {
       data: { user },
       error: authError,
@@ -258,7 +259,8 @@ export async function GET(request: Request) {
 
     // First, get the user's trip memberships to filter by joined_at
     // Only show trips where user is owner OR has accepted invitation (joined_at IS NOT NULL)
-    const { data: userMemberships, error: membershipsError } = await supabase
+    // Use admin client to avoid RLS recursion
+    const { data: userMemberships, error: membershipsError } = await admin
       .from("trip_members")
       .select("trip_id, joined_at, role")
       .eq("user_id", user.id);
@@ -279,8 +281,8 @@ export async function GET(request: Request) {
     );
 
     // Get trips where user is owner OR has accepted invitation
-    // We'll query all trips the user can see via RLS, then filter
-    const { data: allTrips, error: tripsError } = await supabase
+    // Use admin client to avoid RLS recursion
+    const { data: allTrips, error: tripsError } = await admin
       .from("trips")
       .select("*")
       .order("created_at", { ascending: false });
@@ -308,43 +310,15 @@ export async function GET(request: Request) {
 
     const tripIds = trips.map((t) => t.id);
 
-    // Get all members for these trips
-    // Query members only for trips where user is owner (to avoid recursion)
-    // We'll get members for owned trips, and for member trips we'll query differently
-    const ownedTripIds = trips.filter((t) => t.owner_id === user.id).map((t) => t.id);
-    
-    let membersData: any[] = [];
-    
-    // For owned trips, we can safely query all members
-    if (ownedTripIds.length > 0) {
-      const { data: ownedMembers, error: ownedMembersError } = await supabase
-        .from("trip_members")
-        .select("trip_id, user_id, role, profiles!trip_members_user_id_fkey(id, full_name, avatar_url)")
-        .in("trip_id", ownedTripIds);
+    // Get all members for these trips using admin client to avoid RLS recursion
+    const { data: membersData, error: membersError } = await admin
+      .from("trip_members")
+      .select("trip_id, user_id, role, profiles!trip_members_user_id_fkey(id, full_name, avatar_url)")
+      .in("trip_id", tripIds);
 
-      if (!ownedMembersError && ownedMembers) {
-        membersData = [...membersData, ...ownedMembers];
-      }
-    }
-
-    // For trips where user is a member (not owner), try to get members
-    // This might fail due to RLS, so we'll catch and continue
-    const memberTripIds = trips.filter((t) => t.owner_id !== user.id).map((t) => t.id);
-    if (memberTripIds.length > 0) {
-      try {
-        const { data: memberTripsMembers, error: memberTripsError } = await supabase
-          .from("trip_members")
-          .select("trip_id, user_id, role, profiles!trip_members_user_id_fkey(id, full_name, avatar_url)")
-          .in("trip_id", memberTripIds)
-          .eq("user_id", user.id); // Only get the current user's membership to avoid recursion
-
-        if (!memberTripsError && memberTripsMembers) {
-          membersData = [...membersData, ...memberTripsMembers];
-        }
-      } catch (error) {
-        // If this fails due to RLS recursion, we'll just continue without these members
-        console.warn("Could not fetch members for non-owned trips:", error);
-      }
+    if (membersError) {
+      console.error("Error fetching members:", membersError);
+      // Continue without members data rather than failing
     }
 
     // Group members by trip_id
@@ -357,7 +331,7 @@ export async function GET(request: Request) {
       }>
     >();
     
-    membersData?.forEach((member: any) => {
+    (membersData || []).forEach((member: any) => {
       const tripId = member.trip_id;
       if (!membersByTrip.has(tripId)) {
         membersByTrip.set(tripId, []);

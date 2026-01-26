@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { Plane, Calendar, Lock, Image as ImageIcon, ArrowLeft, Save } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TripPageProps {
   params: Promise<{
@@ -201,10 +202,58 @@ export default function EditTripPage({ params }: TripPageProps) {
   // Don't show loading when returning to app if we already have data
   if ((authLoading || loading) && !formData.title) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Back Link Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-6 w-32" />
+          </div>
+
+          {/* Form Skeleton */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 space-y-6">
+            {/* Title Skeleton */}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+
+            {/* Description Skeleton */}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-24 w-full rounded-lg" />
+            </div>
+
+            {/* Date Fields Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+              </div>
+            </div>
+
+            {/* Privacy Skeleton */}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+
+            {/* Cover Photo Skeleton */}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-48 w-full rounded-lg" />
+            </div>
+
+            {/* Buttons Skeleton */}
+            <div className="flex justify-end gap-4">
+              <Skeleton className="h-10 w-24 rounded-lg" />
+              <Skeleton className="h-10 w-32 rounded-lg" />
+            </div>
+          </div>
         </div>
       </div>
     );

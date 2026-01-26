@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +10,7 @@ import { useConfirm } from "@/hooks/use-confirm";
 import { Sparkles, Calendar, Lock, Users, Image as ImageIcon, Edit, Trash2, MoreVertical, Globe, Plus } from "lucide-react";
 import { format, isFuture, isPast } from "date-fns";
 import { Navbar } from "@/components/layout/navbar";
+import { SkeletonCard } from "@/components/ui/skeleton";
 
 interface Trip {
   id: string;
@@ -43,6 +44,8 @@ export default function DashboardPage() {
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [showMenuTripId, setShowMenuTripId] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
+  const isFetchingRef = useRef(false);
+  const hasAttemptedRef = useRef(false);
 
   useEffect(() => {
     // Only redirect if auth is fully initialized and no user
@@ -51,14 +54,55 @@ export default function DashboardPage() {
     }
   }, [user, loading, initialized, router]);
 
+  const fetchTrips = useCallback(async (forceRefresh = false) => {
+    // Prevent concurrent calls
+    if (isFetchingRef.current && !forceRefresh) {
+      return;
+    }
+
+    // Don't fetch if we've already loaded and not forcing refresh
+    if (!forceRefresh && hasLoadedRef.current) {
+      return;
+    }
+
+    // Prevent infinite retries on error - only attempt once automatically
+    if (!forceRefresh && hasAttemptedRef.current && !hasLoadedRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
+    hasAttemptedRef.current = true;
+    setTripsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch("/api/trips");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch trips");
+      }
+
+      setTrips(data.trips || []);
+      hasLoadedRef.current = true;
+    } catch (err) {
+      console.error("Error fetching trips:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load trips"
+      );
+      // Don't set hasLoadedRef on error, but hasAttemptedRef prevents infinite retries
+    } finally {
+      setTripsLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, []);
+
   useEffect(() => {
     // Fetch trips when we have a user (only once per session)
-    if (user && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
+    if (user && !hasAttemptedRef.current && !isFetchingRef.current) {
       fetchTrips();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, fetchTrips]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -70,33 +114,6 @@ export default function DashboardPage() {
       return () => document.removeEventListener("click", handleClickOutside);
     }
   }, [showMenuTripId]);
-
-  const fetchTrips = async (forceRefresh = false) => {
-    // Don't fetch if we've already loaded and not forcing refresh
-    if (!forceRefresh && hasLoadedRef.current && tripsLoading === false) {
-      return;
-    }
-
-    setTripsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/trips");
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch trips");
-      }
-
-      setTrips(data.trips || []);
-    } catch (err) {
-      console.error("Error fetching trips:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load trips"
-      );
-    } finally {
-      setTripsLoading(false);
-    }
-  };
 
   const handleDeleteTrip = async (tripId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -196,10 +213,40 @@ export default function DashboardPage() {
   
   if (isInitialLoad) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Page Title + Create Trip Button Skeleton */}
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-2">
+              <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+            </div>
+            <div className="h-12 w-40 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+          </div>
+
+          {/* Skeleton Trip Cards */}
+          <div className="space-y-8">
+            {/* Upcoming Trips Section */}
+            <div>
+              <div className="h-7 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
+            </div>
+
+            {/* Past Trips Section */}
+            <div>
+              <div className="h-7 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -230,7 +277,7 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={() => router.push("/trips/new")}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
+            className="btn-modern inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
           >
             <Plus className="w-5 h-5" />
             Create New Trip
@@ -246,18 +293,32 @@ export default function DashboardPage() {
 
         {/* Loading State */}
         {tripsLoading ? (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading trips...</p>
+          <div className="space-y-8">
+            {/* Upcoming Trips Skeleton */}
+            <div>
+              <div className="h-7 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
+            </div>
+
+            {/* Past Trips Skeleton */}
+            <div>
+              <div className="h-7 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
             </div>
           </div>
         ) : trips.length === 0 ? (
           /* Empty State */
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12">
+          <div className="glass-card-strong rounded-2xl shadow-xl p-12">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-8 h-8 text-gray-400" />
+              <div className="w-20 h-20 bg-linear-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Sparkles className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 No trips yet
@@ -267,7 +328,7 @@ export default function DashboardPage() {
               </p>
               <button
                 onClick={() => router.push("/trips/new")}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
+                className="btn-modern inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 cursor-pointer"
               >
                 <Plus className="w-5 h-5" />
                 Create Your First Trip
@@ -287,7 +348,7 @@ export default function DashboardPage() {
                   {upcomingTrips.map((trip) => (
                     <div
                       key={trip.id}
-                      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group relative"
+                      className="card-hover glass-card rounded-xl shadow-lg overflow-hidden group relative"
                     >
                       {/* Cover Photo */}
                         <div className="relative h-48 bg-linear-to-br from-blue-500 to-purple-500">
@@ -328,7 +389,7 @@ export default function DashboardPage() {
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               {showMenuTripId === trip.id && (
-                                <div className="absolute left-0 top-10 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] z-10">
+                                <div className="absolute left-0 top-10 glass-card-strong rounded-xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 py-1 min-w-[120px] z-10">
                                   <button
                                     onClick={(e) => handleEditTrip(trip.id, e)}
                                     className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer"
@@ -416,7 +477,7 @@ export default function DashboardPage() {
                   {pastTrips.map((trip) => (
                     <div
                       key={trip.id}
-                      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group opacity-75 relative"
+                      className="card-hover glass-card rounded-xl shadow-lg overflow-hidden group opacity-75 relative"
                     >
                       {/* Cover Photo */}
                       <div className="relative h-48 bg-linear-to-br from-gray-400 to-gray-600">
@@ -453,7 +514,7 @@ export default function DashboardPage() {
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               {showMenuTripId === trip.id && (
-                                <div className="absolute left-0 top-10 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] z-10">
+                                <div className="absolute left-0 top-10 glass-card-strong rounded-xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 py-1 min-w-[120px] z-10">
                                   <button
                                     onClick={(e) => handleEditTrip(trip.id, e)}
                                     className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer"

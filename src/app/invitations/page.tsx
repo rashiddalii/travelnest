@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Navbar } from "@/components/layout/navbar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Invitation {
   id: string;
@@ -327,10 +328,63 @@ function InvitationsPageContent() {
   // Only show loading screen on initial load when we don't have user data yet
   if ((authLoading || loading) && !user && invitations.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Page Header Skeleton */}
+          <div className="mb-8">
+            <Skeleton className="h-6 w-40 mb-4" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-9 w-64" />
+                <Skeleton className="h-4 w-80" />
+              </div>
+            </div>
+          </div>
+
+          {/* Invitations List Skeleton */}
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="glass-card rounded-xl shadow-lg p-6"
+              >
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Cover Photo Skeleton */}
+                  <div className="shrink-0">
+                    <Skeleton className="w-full md:w-48 h-48 rounded-lg" />
+                  </div>
+
+                  {/* Content Skeleton */}
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      {/* Title */}
+                      <Skeleton className="h-7 w-3/4" />
+                      
+                      {/* Message */}
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-5/6" />
+                      </div>
+
+                      {/* Trip Details */}
+                      <div className="flex flex-wrap items-center gap-4">
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </div>
+
+                    {/* Actions Skeleton */}
+                    <div className="flex items-center gap-3 mt-4">
+                      <Skeleton className="h-11 w-28 rounded-lg" />
+                      <Skeleton className="h-11 w-24 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -377,20 +431,53 @@ function InvitationsPageContent() {
 
         {/* Loading State */}
         {loading && invitations.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">
-                Loading invitations...
-              </p>
-            </div>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="glass-card rounded-xl shadow-lg p-6"
+              >
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Cover Photo Skeleton */}
+                  <div className="shrink-0">
+                    <Skeleton className="w-full md:w-48 h-48 rounded-lg" />
+                  </div>
+
+                  {/* Content Skeleton */}
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      {/* Title */}
+                      <Skeleton className="h-7 w-3/4" />
+                      
+                      {/* Message */}
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-5/6" />
+                      </div>
+
+                      {/* Trip Details */}
+                      <div className="flex flex-wrap items-center gap-4">
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </div>
+
+                    {/* Actions Skeleton */}
+                    <div className="flex items-center gap-3 mt-4">
+                      <Skeleton className="h-11 w-28 rounded-lg" />
+                      <Skeleton className="h-11 w-24 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : invitations.length === 0 ? (
           /* Empty State */
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12">
+          <div className="glass-card-strong rounded-2xl shadow-xl p-12">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Bell className="w-8 h-8 text-gray-400" />
+              <div className="w-20 h-20 bg-linear-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Bell className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 No pending invitations
@@ -400,7 +487,7 @@ function InvitationsPageContent() {
               </p>
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="btn-modern inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
               >
                 <Plane className="w-5 h-5" />
                 Go to Dashboard
@@ -413,7 +500,7 @@ function InvitationsPageContent() {
             {invitations.map((invitation) => (
               <div
                 key={invitation.id}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
+                className="card-hover glass-card rounded-xl shadow-lg p-6"
               >
                 <div className="flex flex-col md:flex-row gap-6">
                   {/* Cover Photo */}
@@ -478,7 +565,7 @@ function InvitationsPageContent() {
                       <button
                         onClick={() => handleAccept(invitation)}
                         disabled={processingId === invitation.id}
-                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        className="btn-modern flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                       >
                         <Check className="w-5 h-5" />
                         {processingId === invitation.id ? "Accepting..." : "Accept"}
@@ -486,7 +573,7 @@ function InvitationsPageContent() {
                       <button
                         onClick={() => handleReject(invitation)}
                         disabled={processingId === invitation.id}
-                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        className="btn-modern flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                       >
                         <X className="w-5 h-5" />
                         Reject

@@ -21,10 +21,10 @@ export function OptionCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full p-4 rounded-xl border-2 transition-all duration-200 text-left cursor-pointer ${
+      className={`card-hover w-full p-4 rounded-xl border-2 transition-all duration-200 text-left cursor-pointer ${
         selected
-          ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500"
-          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600"
+          ? "border-blue-600 bg-blue-50/80 dark:bg-blue-900/30 dark:border-blue-500 shadow-md"
+          : "border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm hover:border-blue-300 dark:hover:border-blue-600"
       }`}
     >
       <div className="flex items-start gap-3">

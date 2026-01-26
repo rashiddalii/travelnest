@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { Profile } from "@/types/profile";
 import type { TravelStyle, TravelGroup, PlanningMode } from "@/types/onboarding";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Travel style options (multi-select)
 const TRAVEL_STYLES: {
@@ -457,10 +458,57 @@ function ProfilePageContent() {
 
   if (isInitialLoad) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
+        
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Page Title Skeleton */}
+          <Skeleton className="h-8 w-32 mb-6" />
+
+          {/* Tabs Skeleton */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="flex border-b border-gray-200 dark:border-gray-700">
+              <Skeleton className="flex-1 h-14" />
+              <Skeleton className="flex-1 h-14" />
+              <Skeleton className="flex-1 h-14" />
+            </div>
+
+            {/* Content Skeleton */}
+            <div className="p-6">
+              <div className="space-y-8">
+                {/* Avatar Section */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                  <Skeleton className="h-24 w-24 rounded-full shrink-0" />
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Skeleton className="h-10 w-32 rounded-lg" />
+                      <Skeleton className="h-10 w-24 rounded-lg" />
+                    </div>
+                    <Skeleton className="h-4 w-48" />
+                  </div>
+                </div>
+
+                {/* Form Fields */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  </div>
+                  <div className="flex justify-end">
+                    <Skeleton className="h-10 w-32 rounded-lg" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -489,7 +537,7 @@ function ProfilePageContent() {
         )}
 
         {/* Tabs */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+        <div className="glass-card-strong rounded-xl shadow-lg overflow-hidden">
           <div className="flex border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setActiveTab("profile")}
@@ -524,9 +572,39 @@ function ProfilePageContent() {
           </div>
 
           {profileLoading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading profile...</p>
+            <div className="p-6">
+              <div className="space-y-8">
+                {/* Avatar Section */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                  <Skeleton className="h-24 w-24 rounded-full shrink-0" />
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Skeleton className="h-10 w-32 rounded-lg" />
+                      <Skeleton className="h-10 w-24 rounded-lg" />
+                    </div>
+                    <Skeleton className="h-4 w-48" />
+                  </div>
+                </div>
+
+                {/* Form Fields */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  </div>
+                  <div className="flex justify-end">
+                    <Skeleton className="h-10 w-32 rounded-lg" />
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="p-6">
@@ -565,7 +643,7 @@ function ProfilePageContent() {
                         <button
                           onClick={() => fileInputRef.current?.click()}
                           disabled={uploading}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="btn-modern flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Upload className="w-4 h-4" />
                           Upload Photo
@@ -574,7 +652,7 @@ function ProfilePageContent() {
                           <button
                             onClick={handleRemoveAvatar}
                             disabled={uploading}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="btn-modern flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Trash2 className="w-4 h-4" />
                             Remove
@@ -619,7 +697,7 @@ function ProfilePageContent() {
                         type="email"
                         value={user.email || ""}
                         disabled
-                        className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                        className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 dark:text-gray-400 cursor-not-allowed"
                       />
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         Email cannot be changed
@@ -634,14 +712,14 @@ function ProfilePageContent() {
                         onChange={(e) => setBio(e.target.value)}
                         placeholder="Tell us a bit about yourself..."
                         rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        className="input-modern w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-400 resize-none"
                       />
                     </div>
                     <div className="flex justify-end">
                       <button
                         onClick={handleSaveProfile}
                         disabled={saving}
-                        className="flex items-center gap-2 px-6 py-2 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="btn-modern flex items-center gap-2 px-6 py-2 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Save className="w-4 h-4" />
                         {saving ? "Saving..." : "Save Changes"}
@@ -670,10 +748,10 @@ function ProfilePageContent() {
                           <button
                             key={style.id}
                             onClick={() => toggleTravelStyle(style.id)}
-                            className={`p-4 rounded-xl border-2 transition-all text-left cursor-pointer ${
+                            className={`card-hover p-4 rounded-xl border-2 transition-all text-left cursor-pointer ${
                               isSelected
-                                ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500"
-                                : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                                ? "border-blue-600 bg-blue-50/80 dark:bg-blue-900/30 dark:border-blue-500 shadow-md"
+                                : "border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm hover:border-blue-300 dark:hover:border-blue-600"
                             }`}
                           >
                             <div className="flex items-start gap-3">
@@ -719,10 +797,10 @@ function ProfilePageContent() {
                           <button
                             key={group.id}
                             onClick={() => setPreferences({ ...preferences, typical_group: group.id })}
-                            className={`p-4 rounded-xl border-2 transition-all text-center cursor-pointer ${
+                            className={`card-hover p-4 rounded-xl border-2 transition-all text-center cursor-pointer ${
                               isSelected
-                                ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500"
-                                : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                                ? "border-blue-600 bg-blue-50/80 dark:bg-blue-900/30 dark:border-blue-500 shadow-md"
+                                : "border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm hover:border-blue-300 dark:hover:border-blue-600"
                             }`}
                           >
                             <div
@@ -756,10 +834,10 @@ function ProfilePageContent() {
                           <button
                             key={mode.id}
                             onClick={() => setPreferences({ ...preferences, planning_mode: mode.id })}
-                            className={`p-4 rounded-xl border-2 transition-all text-left cursor-pointer ${
+                            className={`card-hover p-4 rounded-xl border-2 transition-all text-left cursor-pointer ${
                               isSelected
-                                ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500"
-                                : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                                ? "border-blue-600 bg-blue-50/80 dark:bg-blue-900/30 dark:border-blue-500 shadow-md"
+                                : "border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm hover:border-blue-300 dark:hover:border-blue-600"
                             }`}
                           >
                             <div className="flex items-center gap-3">
@@ -820,7 +898,7 @@ function ProfilePageContent() {
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="Enter new password"
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="input-modern w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-400"
                           />
                           <button
                             type="button"
@@ -841,7 +919,7 @@ function ProfilePageContent() {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="Confirm new password"
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="input-modern w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-400"
                           />
                           <button
                             type="button"
@@ -858,7 +936,7 @@ function ProfilePageContent() {
                       <button
                         type="submit"
                         disabled={passwordSaving || !newPassword || !confirmPassword}
-                        className="flex items-center gap-2 px-6 py-2 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="btn-modern flex items-center gap-2 px-6 py-2 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Lock className="w-4 h-4" />
                         {passwordSaving ? "Updating..." : "Update Password"}

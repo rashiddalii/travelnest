@@ -337,7 +337,7 @@ function OnboardingPageContent() {
         )}
 
         {/* Screen Content */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl min-h-[500px] overflow-hidden">
+        <div className="glass-card-strong rounded-2xl shadow-xl min-h-[500px] overflow-hidden">
           {/* Step 1: Travel Styles (multi-select) */}
           {currentStep === 0 && (
             <OnboardingScreen
@@ -358,10 +358,10 @@ function OnboardingPageContent() {
                     <button
                       key={style.id}
                       onClick={() => toggleTravelStyle(style.id)}
-                      className={`p-4 rounded-xl border-2 transition-all duration-200 text-left cursor-pointer ${
+                      className={`card-hover p-4 rounded-xl border-2 transition-all duration-200 text-left cursor-pointer ${
                         isSelected
-                          ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500"
-                          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600"
+                          ? "border-blue-600 bg-blue-50/80 dark:bg-blue-900/30 dark:border-blue-500 shadow-md"
+                          : "border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm hover:border-blue-300 dark:hover:border-blue-600"
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -465,7 +465,7 @@ function OnboardingPageContent() {
           <button
             onClick={handleBack}
             disabled={currentStep === 0}
-            className="px-6 py-3 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="btn-modern px-6 py-3 rounded-xl font-medium text-gray-700 dark:text-gray-300 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-300 dark:border-gray-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
           >
             Back
           </button>
@@ -478,7 +478,7 @@ function OnboardingPageContent() {
               }
             }}
             disabled={!canProceed() || saving}
-            className="px-6 py-3 rounded-lg font-medium text-white bg-linear-to-r from-blue-600 to-purple-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
+            className="btn-modern px-6 py-3 rounded-xl font-medium text-white bg-linear-to-r from-blue-600 to-purple-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-blue-500/25"
           >
             {saving
               ? "Saving..."
