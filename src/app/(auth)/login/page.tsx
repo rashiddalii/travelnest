@@ -13,7 +13,7 @@ function LoginFormContent() {
   const inviteToken = searchParams.get("invite");
   const message = searchParams.get("message");
   const redirect = inviteToken 
-    ? `/invitations?token=${inviteToken}` 
+    ? `/activity?token=${inviteToken}` 
     : searchParams.get("redirect") || "/dashboard";
 
   const [email, setEmail] = useState("");

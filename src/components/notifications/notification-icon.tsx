@@ -57,7 +57,7 @@ export function NotificationIcon({ className }: NotificationIconProps) {
   }, []);
 
   const handleClick = () => {
-    router.push("/invitations");
+    router.push("/activity");
   };
 
   return (

@@ -9,7 +9,6 @@ import { useAuthStore } from "@/lib/store/auth-store";
 import { useProfileStore } from "@/lib/store/profile-store";
 import { NotificationIcon } from "@/components/notifications/notification-icon";
 import {
-  User,
   Settings,
   LogOut,
   ChevronDown,
@@ -163,18 +162,10 @@ export function Navbar({ showBackButton, backHref, backLabel }: NavbarProps) {
                     </p>
                   </div>
 
-                  {/* Menu Items */}
+                  {/* Menu Items - Settings opens the settings hub (sidebar); Profile (user details + activity) to be added later */}
                   <div className="py-1">
                     <Link
-                      href="/profile"
-                      onClick={() => setShowDropdown(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                    >
-                      <User className="w-4 h-4" />
-                      View Profile
-                    </Link>
-                    <Link
-                      href="/profile?tab=settings"
+                      href="/settings/profile"
                       onClick={() => setShowDropdown(false)}
                       className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                     >

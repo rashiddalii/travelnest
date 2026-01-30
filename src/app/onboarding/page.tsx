@@ -167,7 +167,7 @@ function OnboardingPageContent() {
           if (data.onboarding_completed) {
             // User already completed onboarding, redirect to dashboard
             if (inviteToken) {
-              router.push(`/invitations?token=${inviteToken}`);
+              router.push(`/activity?token=${inviteToken}`);
             } else {
               router.push("/dashboard");
             }
@@ -246,7 +246,7 @@ function OnboardingPageContent() {
 
       // Redirect based on invite token
       if (inviteToken) {
-        router.push(`/invitations?token=${inviteToken}`);
+        router.push(`/activity?token=${inviteToken}`);
       } else {
         router.push("/dashboard");
       }

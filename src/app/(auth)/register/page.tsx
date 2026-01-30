@@ -115,7 +115,7 @@ function RegisterForm() {
           router.push(onboardingPath);
         } else {
           const redirectPath = inviteToken
-            ? `/invitations?token=${inviteToken}`
+            ? `/activity?token=${inviteToken}`
             : "/dashboard";
           router.push(redirectPath);
         }

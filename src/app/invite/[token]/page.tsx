@@ -108,12 +108,12 @@ export default function InviteTokenPage({
             router.push(`/onboarding?invite=${token}`);
           } else {
             // Onboarding complete - redirect to invitations page
-            router.push(`/invitations?token=${token}`);
+            router.push(`/activity?token=${token}`);
           }
         })
         .catch(() => {
           // If check fails, go to invitations page
-          router.push(`/invitations?token=${token}`);
+          router.push(`/activity?token=${token}`);
         });
     }
   }, [user, authLoading, initialized, invitationData, token, router, searchParams]);
